@@ -97,7 +97,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         <div class="min-w-0 flex-1">
           <h3 class="text-base font-bold text-gray-900 leading-tight">Truncate Database KPI?</h3>
           <p class="text-xs text-gray-500 mt-1 leading-relaxed">
-            Tindakan ini akan mengosongkan seluruh data pada tabel <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">user_kpi_data</code> dan <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">branch_data</code> di PostgreSQL secara permanen.
+            This action will permanently wipe all records from <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">user_kpi_data</code> and <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">branch_data</code> in PostgreSQL.
           </p>
         </div>
       </div>
@@ -105,20 +105,20 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
         <span class="text-base leading-none">⚠️</span>
         <div>
-          <span class="font-bold">Perintah Proxmox:</span><br>
+          <span class="font-bold">Proxmox Command:</span><br>
           <code class="font-mono text-[10px] text-amber-950 break-all">TRUNCATE TABLE user_kpi_data, branch_data RESTART IDENTITY;</code>
         </div>
       </div>
 
       <div class="flex items-center justify-end gap-2.5 pt-2">
         <button id="btn-cancel-delete-kpi" type="button" class="px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 active:bg-gray-100 text-xs font-semibold text-gray-700 cursor-pointer transition-colors">
-          Batal
+          Cancel
         </button>
         <button id="btn-confirm-delete-kpi" type="button" class="px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-xs font-semibold text-white shadow-xs cursor-pointer flex items-center gap-2 transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
-          <span id="confirm-delete-btn-text">Ya, Hapus Semua Data</span>
+          <span id="confirm-delete-btn-text">Yes, Delete All Data</span>
         </button>
       </div>
     </div>
@@ -575,7 +575,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               <table class="w-full text-left text-xs">
                 <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
                   <tr>
-                    <th class="py-3.5 px-4 w-8"><input type="checkbox" class="rounded border-gray-300"></th>
                     <th class="py-3.5 px-4 w-32">Time (WIB)</th>
                     <th class="py-3.5 px-4 w-44">User / Role</th>
                     <th class="py-3.5 px-4">Query & Response</th>
@@ -586,7 +585,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                   </tr>
                 </thead>
                 <tbody id="chat-logs-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
-                  <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
+                  <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -785,7 +784,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <table class="w-full text-left text-xs">
               <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
-                  <th class="py-3.5 px-4 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
                   <th class="py-3.5 px-4">NIK</th>
                   <th class="py-3.5 px-4">Employee Name</th>
                   <th class="py-3.5 px-4">Role</th>
@@ -796,7 +794,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                 </tr>
               </thead>
               <tbody id="kpi-table-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
-                <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>
+                <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1817,7 +1815,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
       const totalRecords = filtered.length;
       if (totalRecords === 0) {
-        chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No matching log records found.</td></tr>`;
+        chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">No matching log records found.</td></tr>`;
         if (logPageIndicator) logPageIndicator.innerText = 'Showing 0 records';
         if (logCurrentPage) logCurrentPage.innerText = '1';
         if (btnLogPrev) btnLogPrev.disabled = true;
@@ -1848,7 +1846,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
         return `
           <tr data-log-index="${globalIdx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
-            <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
             <td class="py-3 px-4 font-mono text-gray-500 tabular-nums whitespace-nowrap text-xs">
               ${formatTimeNumeric(row.created_at)}
             </td>
@@ -2205,7 +2202,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       const roleFilter = kpiRoleFilter ? kpiRoleFilter.value : 'ALL';
 
       try {
-        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>`;
+        kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>`;
         let url = `/api/kpi?scope=users&page=${page}&limit=50`;
         if (q) url += `&search=${encodeURIComponent(q)}`;
         if (roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
@@ -2243,7 +2240,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
       } catch (err) {
         console.error('Failed to load KPI data:', err);
-        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-rose-600 font-mono">Error loading PostgreSQL KPI: ${err.message}</td></tr>`;
+        kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-600 font-mono">Error loading PostgreSQL KPI: ${err.message}</td></tr>`;
       }
     }
 
@@ -2259,7 +2256,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
 
       if (filtered.length === 0) {
-        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">No matching employees found on this page.</td></tr>`;
+        kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">No matching employees found on this page.</td></tr>`;
         return;
       }
 
@@ -2270,7 +2267,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
         return `
           <tr data-kpi-index="${idx}" class="kpi-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
-            <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
             <td class="py-3 px-4 font-bold text-gray-900 font-mono group-hover:text-black transition-colors">${row.username || '—'}</td>
             <td class="py-3 px-4 text-gray-900 font-semibold">${row.full_name || '—'}</td>
             <td class="py-3 px-4">
@@ -2373,7 +2369,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
     if (btnConfirmDeleteKpi) {
       btnConfirmDeleteKpi.addEventListener('click', async () => {
-        const origText = confirmDeleteBtnText ? confirmDeleteBtnText.innerText : 'Ya, Hapus Semua Data';
+        const origText = confirmDeleteBtnText ? confirmDeleteBtnText.innerText : 'Yes, Delete All Data';
         btnConfirmDeleteKpi.disabled = true;
         if (confirmDeleteBtnText) confirmDeleteBtnText.innerText = 'Truncating DB...';
 
@@ -2384,12 +2380,12 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             throw new Error(result.error || `HTTP ${res.status}`);
           }
           if (confirmDeleteModal) confirmDeleteModal.close();
-          notify(result.message || 'Data PostgreSQL berhasil dikosongkan.');
+          notify(result.message || 'PostgreSQL tables truncated successfully.');
           rawKPIRows = [];
           kpiTotalBadge.innerText = '0';
           await loadKPIData(1);
         } catch (err) {
-          notify(`Gagal menghapus data: ${err.message}`, false);
+          notify(`Failed to truncate records: ${err.message}`, false);
         } finally {
           btnConfirmDeleteKpi.disabled = false;
           if (confirmDeleteBtnText) confirmDeleteBtnText.innerText = origText;
