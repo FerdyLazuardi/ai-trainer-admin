@@ -20,7 +20,32 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
-<body class="bg-[#F3F4F6] text-gray-900 min-h-screen lg:h-screen lg:overflow-hidden antialiased p-3 sm:p-5 flex flex-col lg:flex-row gap-5 font-sans selection:bg-gray-900/10 selection:text-gray-900">
+<body class="bg-[#F3F4F6] text-gray-900 min-h-screen lg:h-screen lg:overflow-hidden antialiased p-0 lg:p-5 flex flex-col lg:flex-row gap-0 lg:gap-5 font-sans selection:bg-gray-900/10 selection:text-gray-900">
+
+  <!-- Mobile Sticky Top Navbar (sticky and follows user on scroll) -->
+  <header id="mobile-navbar" class="lg:hidden sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-200/80 px-4 py-3 flex items-center justify-between shadow-2xs">
+    <div class="flex items-center gap-3 min-w-0">
+      <button id="mobile-menu-toggle" title="Open Navigation Menu" class="w-8 h-8 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 flex items-center justify-center cursor-pointer transition-all shadow-2xs shrink-0">
+        <svg id="mobile-menu-arrow" class="w-4 h-4 transition-transform duration-200 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <div class="min-w-0">
+        <div class="font-extrabold text-sm text-gray-900 tracking-tight leading-tight">Dashboard</div>
+        <div class="font-bold text-[10px] text-gray-500 tracking-wide leading-tight mt-0.5">Ai - Trainer</div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 shrink-0">
+      <span id="mobile-tab-indicator" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 truncate max-w-[140px]">
+        Spreadsheet Sync
+      </span>
+    </div>
+  </header>
+
+  <!-- Mobile Backdrop Overlay -->
+  <div id="mobile-sidebar-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 hidden lg:hidden transition-opacity duration-300"></div>
 
   <!-- Toast Notification Overlay -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-200 translate-y-12 opacity-0 pointer-events-none">
@@ -66,19 +91,25 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     </div>
   </dialog>
 
-  <!-- Left Sidebar (Vocalyn Exact Match) -->
-  <aside id="main-sidebar" class="w-full lg:w-64 lg:h-full bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-2 px-1 select-none space-y-6 transition-[width] duration-200 overflow-y-auto">
+  <!-- Left Sidebar (Vocalyn Exact Match on Desktop + Slide-Over Drawer on Mobile) -->
+  <aside id="main-sidebar" class="w-72 lg:w-64 h-full bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-4 lg:py-2 px-3 lg:px-1 select-none space-y-6 transition-[width] duration-200 overflow-y-auto">
     <div class="space-y-6">
       
-      <!-- Brand & Product Title & Collapse Toggle -->
+      <!-- Brand & Product Title & Collapse / Mobile Close Toggle -->
       <div class="sidebar-header flex items-center justify-between px-3">
         <div class="sidebar-brand-logo sidebar-text min-w-0">
           <div class="font-extrabold text-base text-gray-900 tracking-tight leading-tight">Dashboard</div>
           <div class="font-bold text-xs text-gray-500 tracking-wide leading-tight mt-0.5">Ai - Trainer</div>
         </div>
 
-        <button id="sidebar-toggle-btn" title="Toggle Sidebar" class="w-7 h-7 rounded-lg border border-gray-200/80 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-2xs">
+        <!-- Desktop Collapse Button -->
+        <button id="sidebar-toggle-btn" title="Toggle Sidebar" class="hidden lg:flex w-7 h-7 rounded-lg border border-gray-200/80 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 items-center justify-center cursor-pointer transition-all shrink-0 shadow-2xs">
           <svg id="sidebar-toggle-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+
+        <!-- Mobile Close Button inside Drawer -->
+        <button id="mobile-sidebar-close" title="Close Menu" class="lg:hidden w-8 h-8 rounded-xl border border-gray-200/80 bg-white text-gray-500 hover:text-gray-900 flex items-center justify-center cursor-pointer shadow-2xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
@@ -119,7 +150,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
   </aside>
 
   <!-- Main Content Canvas (Pure White Vocalyn Panel) -->
-  <main class="flex-1 bg-white rounded-3xl border border-gray-200/80 shadow-sm p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:h-full lg:overflow-y-auto min-w-0">
+  <main class="flex-1 bg-white lg:rounded-3xl border-t lg:border border-gray-200/80 shadow-sm p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:h-full lg:overflow-y-auto min-w-0 m-2 sm:m-3 lg:m-0 rounded-2xl">
 
     <!-- Top Canvas Header -->
     <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
@@ -453,22 +484,24 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         <!-- Charts Row: Intent Distribution (Donut) & Daily Trends -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0">
             <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
               <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Classification Intent</h3>
             </div>
-            <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[220px]">
+            <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[220px] overflow-x-auto">
               <div class="text-gray-400 py-6 text-center text-xs">Loading intent donut chart...</div>
             </div>
           </div>
 
-          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0 overflow-hidden">
             <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
               <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Daily Request Trends</h3>
               <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
             </div>
-            <div id="trends-chart-container" class="h-48 flex items-end gap-2 pt-4 pb-2">
-              <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+            <div class="w-full overflow-x-auto pb-2 -mb-2">
+              <div id="trends-chart-container" class="h-48 flex items-end gap-1.5 sm:gap-2 pt-4 pb-2 min-w-[500px] lg:min-w-0 w-full">
+                <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+              </div>
             </div>
           </div>
 
@@ -803,12 +836,12 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Sidebar Collapse Toggle
+    // Sidebar Desktop Collapse Toggle
     const mainSidebar = document.getElementById('main-sidebar');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
     const isSidebarCollapsed = localStorage.getItem('cag_sidebar_collapsed') === 'true';
-    if (isSidebarCollapsed && mainSidebar) {
+    if (isSidebarCollapsed && mainSidebar && window.innerWidth >= 1024) {
       mainSidebar.classList.add('is-collapsed');
     }
 
@@ -820,6 +853,46 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
     }
 
+    // Mobile Sidebar Drawer Toggle & Backdrop
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenuArrow = document.getElementById('mobile-menu-arrow');
+    const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
+    const mobileBackdrop = document.getElementById('mobile-sidebar-backdrop');
+    const mobileTabIndicator = document.getElementById('mobile-tab-indicator');
+
+    function openMobileSidebar() {
+      if (!mainSidebar) return;
+      mainSidebar.classList.add('mobile-open');
+      if (mobileBackdrop) mobileBackdrop.classList.remove('hidden');
+      if (mobileMenuArrow) mobileMenuArrow.classList.add('rotate-180');
+      document.body.classList.add('overflow-hidden', 'lg:overflow-auto');
+    }
+
+    function closeMobileSidebar() {
+      if (!mainSidebar) return;
+      mainSidebar.classList.remove('mobile-open');
+      if (mobileBackdrop) mobileBackdrop.classList.add('hidden');
+      if (mobileMenuArrow) mobileMenuArrow.classList.remove('rotate-180');
+      document.body.classList.remove('overflow-hidden', 'lg:overflow-auto');
+    }
+
+    if (mobileMenuToggle) {
+      mobileMenuToggle.addEventListener('click', () => {
+        if (mainSidebar && mainSidebar.classList.contains('mobile-open')) {
+          closeMobileSidebar();
+        } else {
+          openMobileSidebar();
+        }
+      });
+    }
+
+    if (mobileSidebarClose) {
+      mobileSidebarClose.addEventListener('click', closeMobileSidebar);
+    }
+
+    if (mobileBackdrop) {
+      mobileBackdrop.addEventListener('click', closeMobileSidebar);
+    }
 
     // Tab Switching
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -828,7 +901,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     tabButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const tab = btn.getAttribute('data-tab');
-        if (tab === activeTab) return;
+        if (tab === activeTab) {
+          if (window.innerWidth < 1024) closeMobileSidebar();
+          return;
+        }
         activeTab = tab;
 
         tabButtons.forEach(b => {
@@ -842,6 +918,15 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const activePane = document.getElementById(`tab-content-${tab}`);
         if (activePane) activePane.classList.remove('hidden');
 
+        const tabTitles = {
+          sync: 'Spreadsheet Sync',
+          logs: 'Chat Logs',
+          kpi: 'Spreadsheet KPI'
+        };
+        if (mobileTabIndicator) {
+          mobileTabIndicator.innerText = tabTitles[tab] || 'Dashboard';
+        }
+
         if (tab === 'sync') {
           pageTitle.innerText = 'Spreadsheet Sync';
           pageSubtitle.innerText = 'Automated synchronization and telemetry management';
@@ -853,6 +938,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           pageTitle.innerText = 'Spreadsheet KPI Directory';
           pageSubtitle.innerText = 'Live PostgreSQL user KPI data synced from spreadsheet';
           if (rawKPIRows.length === 0) loadKPIData();
+        }
+
+        if (window.innerWidth < 1024) {
+          closeMobileSidebar();
         }
       });
     });
@@ -1620,9 +1709,9 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             const hPct = Math.max(8, Math.round(((t.queries || 0) / maxQ) * 100));
             const shortDate = t.date ? t.date.slice(5) : '';
             return `
-              <div class="flex-1 flex flex-col items-center gap-1 group h-full justify-end">
+              <div class="min-w-[14px] sm:min-w-[18px] flex-1 flex flex-col items-center gap-1 group h-full justify-end shrink-0 sm:shrink">
                 <span class="text-[9px] font-mono text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">${t.queries}</span>
-                <div class="w-full max-w-[22px] bg-gray-900 hover:bg-black rounded-t transition-all" style="height: ${hPct}%"></div>
+                <div class="w-full max-w-[20px] bg-gray-900 hover:bg-black rounded-t transition-all" style="height: ${hPct}%"></div>
                 <span class="text-[9px] font-mono text-gray-400 truncate w-full text-center">${shortDate}</span>
               </div>
             `;
