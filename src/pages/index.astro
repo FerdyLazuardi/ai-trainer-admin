@@ -790,7 +790,30 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     let rawChatLogs = [];
     let rawKPIRows = [];
     let kpiPage = 1;
-    const USD_TO_IDR = 16000.0;
+    let USD_TO_IDR = 17600.0;
+    // Fetch live USD/IDR exchange rate matching Streamlit
+    async function initExchangeRate() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.rates && data.rates.IDR) {
+            USD_TO_IDR = Number(data.rates.IDR);
+            if (window._lastKPIs) {
+              const el = document.getElementById('log-stat-cost');
+              if (el) {
+                const costIdr = Math.round((window._lastKPIs.total_cost || 0) * USD_TO_IDR);
+                el.innerText = `Rp ${costIdr.toLocaleString('id-ID')}`;
+              }
+              renderChatLogsTable();
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Exchange rate fetch error:', e);
+      }
+    }
+    initExchangeRate();
 
     // Elements
     const pageTitle = document.getElementById('page-title');
@@ -1695,6 +1718,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const avgSec = ((kpis.avg_latency || 0) / 1000).toFixed(2);
         logStatLatency.innerText = `${avgSec}s`;
         logStatHitrate.innerText = `${(kpis.hit_rate || 0).toFixed(1)}%`;
+        window._lastKPIs = kpis;
         const costIdr = Math.round((kpis.total_cost || 0) * USD_TO_IDR);
         logStatCost.innerText = `Rp ${costIdr.toLocaleString('id-ID')}`;
         logStatTokens.innerText = `${((kpis.or_cached_tokens || 0) / 1_000_000).toFixed(1)}M cached tokens`;
