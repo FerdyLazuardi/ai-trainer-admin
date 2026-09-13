@@ -2277,7 +2277,21 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       kpiTableRows.innerHTML = filtered.map((row, idx) => {
         const skor = row['Skor KPI'] || row.skor_kpi || '—';
         const status = row['KPI Status'] || row.kpi_status || 'Need Improvement';
-        const isGood = String(skor).includes('100') || String(status).includes('Achieve') || String(status).includes('Good');
+        const sLower = String(status).toLowerCase();
+
+        let badgeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+        let dotClass = 'bg-amber-500';
+        let skorClass = 'text-gray-900';
+
+        if (sLower.includes('exceed')) {
+          badgeClass = 'bg-purple-50 text-purple-700 border border-purple-200 font-semibold';
+          dotClass = 'bg-purple-500';
+          skorClass = 'text-purple-600 font-bold';
+        } else if (sLower.includes('achieve')) {
+          badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+          dotClass = 'bg-emerald-500';
+          skorClass = 'text-emerald-600 font-bold';
+        }
 
         return `
           <tr data-kpi-index="${idx}" class="kpi-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
@@ -2290,9 +2304,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </td>
             <td class="py-3 px-4 text-gray-600">${row.point || '—'}</td>
             <td class="py-3 px-4 text-gray-500">${row.area || ''} / ${row.regional || ''}</td>
-            <td class="py-3 px-4 font-bold tabular-nums ${isGood ? 'text-emerald-600' : 'text-gray-900'}">${skor}</td>
+            <td class="py-3 px-4 font-bold tabular-nums ${skorClass}">${skor}</td>
             <td class="py-3 px-4 text-right">
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${isGood ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${badgeClass}">
+                <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>
                 ${status}
               </span>
             </td>
