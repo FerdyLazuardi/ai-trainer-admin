@@ -109,3 +109,40 @@ export const GET: APIRoute = async ({ request }) => {
     });
   }
 };
+
+export const DELETE: APIRoute = async () => {
+  const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
+  const adminKey = ADMIN_API_KEY || '';
+
+  // Clear in-memory cache
+  cache.clear();
+
+  try {
+    const res = await fetch(`${backendUrl}/admin/spreadsheet/clean`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-Key': adminKey,
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return new Response(JSON.stringify({ error: err.detail || `Backend error (HTTP ${res.status})` }), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const data = await res.json();
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message || 'Failed to connect to backend' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};
+

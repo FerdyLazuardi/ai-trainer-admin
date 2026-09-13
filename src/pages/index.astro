@@ -718,7 +718,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <select id="kpi-role-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
               <option value="ALL">All Roles</option>
               <option value="BP">BP (Business Partner)</option>
@@ -729,6 +729,13 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
             <button id="btn-reload-kpi" class="px-3.5 py-2 rounded-2xl bg-gray-900 text-white text-xs font-semibold hover:bg-black shadow-xs cursor-pointer">
               Search
+            </button>
+
+            <button id="btn-delete-all-kpi" class="px-3.5 py-2 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-100 active:bg-rose-200 shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors" title="Delete all KPI records from PostgreSQL">
+              <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>Delete All</span>
             </button>
           </div>
         </div>
@@ -1645,8 +1652,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <svg viewBox="0 0 200 200" class="w-52 h-52 sm:w-56 sm:h-56 drop-shadow-xs">
               ${paths}
               <circle cx="100" cy="100" r="${rIn}" fill="#FFFFFF" />
-              <text x="100" y="93" text-anchor="middle" dominant-baseline="central" fill="#111827" class="text-2xl font-black font-mono tracking-tight select-none">${total.toLocaleString('id-ID')}</text>
-              <text x="100" y="113" text-anchor="middle" dominant-baseline="central" fill="#6B7280" class="text-[9px] font-bold uppercase tracking-wider select-none">Total Logs</text>
               ${labels}
             </svg>
           </div>
@@ -2146,6 +2151,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     const kpiTargetRoles = document.getElementById('kpi-target-roles');
     const kpiTargetSubtitle = document.getElementById('kpi-target-subtitle');
     const btnReloadKpi = document.getElementById('btn-reload-kpi');
+    const btnDeleteAllKpi = document.getElementById('btn-delete-all-kpi');
     const btnKpiPrev = document.getElementById('btn-kpi-prev');
     const btnKpiNext = document.getElementById('btn-kpi-next');
     const kpiCurrentPage = document.getElementById('kpi-current-page');
@@ -2305,6 +2311,40 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     kpiSearchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') loadKPIData(1);
     });
+
+    if (btnDeleteAllKpi) {
+      btnDeleteAllKpi.addEventListener('click', async () => {
+        const confirmed = confirm('Apakah Anda yakin ingin menghapus SELURUH data KPI & cabang dari database PostgreSQL? Tindakan ini akan mengosongkan tabel tanpa perlu buka Proxmox.');
+        if (!confirmed) return;
+
+        const origHtml = btnDeleteAllKpi.innerHTML;
+        btnDeleteAllKpi.disabled = true;
+        btnDeleteAllKpi.innerHTML = `
+          <svg class="w-3.5 h-3.5 animate-spin text-rose-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Cleaning...</span>
+        `;
+
+        try {
+          const res = await fetch('/api/kpi', { method: 'DELETE' });
+          const result = await res.json();
+          if (!res.ok) {
+            throw new Error(result.error || `HTTP ${res.status}`);
+          }
+          notify(result.message || 'Semua data KPI berhasil dihapus dari database.');
+          rawKPIRows = [];
+          kpiTotalBadge.innerText = '0';
+          await loadKPIData(1);
+        } catch (err) {
+          notify(`Gagal menghapus data: ${err.message}`, false);
+        } finally {
+          btnDeleteAllKpi.disabled = false;
+          btnDeleteAllKpi.innerHTML = origHtml;
+        }
+      });
+    }
 
     btnKpiPrev.addEventListener('click', () => {
       if (kpiPage > 1) loadKPIData(kpiPage - 1);
