@@ -223,7 +223,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </div>
           </div>
           <div class="mt-2">
-            <span id="stat-user-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">7,609</span>
+            <span id="stat-user-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">-</span>
             <span class="text-xs font-semibold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
           </div>
           <span class="text-[11px] text-gray-500 mt-1 font-medium">Synced to table: user_kpi_data</span>
@@ -707,7 +707,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </div>
           </div>
           <div class="mt-2">
-            <span id="kpi-total-badge" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">7,609</span>
+            <span id="kpi-total-badge" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">-</span>
             <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2">Postgres Live</span>
           </div>
           <span class="text-[11px] text-gray-400 mt-1">Queried from Proxmox DB</span>
@@ -1139,10 +1139,24 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           statStatusText.className = 'text-base font-bold text-gray-700';
         }
 
+        // Fetch live count from PostgreSQL table user_kpi_data
+        try {
+          const kpiRes = await fetch('/api/kpi?scope=users&page=1&limit=1');
+          if (kpiRes.ok) {
+            const kpiData = await kpiRes.json();
+            const liveTotal = kpiData.total ?? kpiData.users_total ?? 0;
+            statUserCount.innerText = Number(liveTotal).toLocaleString('id-ID');
+            if (kpiTotalBadge) kpiTotalBadge.innerText = Number(liveTotal).toLocaleString('id-ID');
+          } else {
+            statUserCount.innerText = '0';
+          }
+        } catch (e) {
+          statUserCount.innerText = '0';
+        }
+
         if (data.last_result) {
-          const u = data.last_result.users_updated ?? 7609;
-          const b = data.last_result.branches_updated ?? 800;
-          statUserCount.innerText = u.toLocaleString('id-ID');
+          const u = data.last_result.users_updated ?? 0;
+          const b = data.last_result.branches_updated ?? 0;
           if (statBranchCount) statBranchCount.innerText = b.toLocaleString('id-ID');
 
           ledgerRows.innerHTML = `
@@ -2383,6 +2397,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           notify(result.message || 'PostgreSQL tables truncated successfully.');
           rawKPIRows = [];
           kpiTotalBadge.innerText = '0';
+          if (statUserCount) statUserCount.innerText = '0';
           await loadKPIData(1);
         } catch (err) {
           notify(`Failed to truncate records: ${err.message}`, false);
