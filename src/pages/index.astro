@@ -49,8 +49,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     <div class="space-y-6">
       
       <!-- Brand & Product Title with Diamond Logo & Collapse Toggle -->
-      <div class="flex items-center justify-between px-3">
-        <div class="flex items-center gap-3 min-w-0 overflow-hidden">
+      <div class="sidebar-header flex items-center justify-between px-3">
+        <div class="sidebar-brand-logo flex items-center gap-3 min-w-0 overflow-hidden">
           <div class="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-xs shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
@@ -64,24 +64,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         <button id="sidebar-toggle-btn" title="Toggle Sidebar" class="w-7 h-7 rounded-lg border border-gray-200/80 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-2xs">
           <svg id="sidebar-toggle-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </button>
-      </div>
-
-      <!-- Authenticated Operator Card (Tenant Switcher Pill) -->
-      <div id="operator-card" class="p-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex items-center justify-between">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-xl bg-gray-100 text-gray-800 font-bold text-xs flex items-center justify-center shrink-0 border border-gray-200/60">
-            AM
-          </div>
-          <div class="sidebar-text min-w-0 flex-1">
-            <div class="text-xs font-bold text-gray-900 truncate" title={userEmail}>
-              {userEmail.split('@')[0]}
-            </div>
-            <div class="text-[10px] text-gray-400 font-mono truncate">@amartha.com</div>
-          </div>
-        </div>
-        <div class="sidebar-text text-gray-400 pr-1">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
-        </div>
       </div>
 
       <!-- Navigation Tabs (Categorized & Pill Style) -->
@@ -140,10 +122,16 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         <span id="sys-ram-text" class="tabular-nums">1.4 / 4.0 GB</span>
       </div>
     </div>
+
+    <!-- Mini Indicator when Sidebar is Collapsed -->
+    <div id="sys-widget-mini" class="hidden flex-col items-center justify-center p-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs cursor-pointer hover:border-gray-300 transition-all" title="Proxmox VM Online">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span id="sys-ram-mini-text" class="text-[9px] font-mono font-bold text-gray-600 mt-1">35%</span>
+    </div>
   </aside>
 
   <!-- Main Content Canvas (Pure White Vocalyn Panel) -->
-  <main class="flex-1 bg-white rounded-3xl border border-gray-200/80 shadow-sm p-6 sm:p-8 flex flex-col gap-6 overflow-hidden">
+  <main class="flex-1 bg-white rounded-3xl border border-gray-200/80 shadow-sm p-4 sm:p-6 lg:p-8 flex flex-col gap-6 overflow-hidden min-w-0">
 
     <!-- Top Canvas Header -->
     <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
@@ -162,10 +150,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span>Refresh</span>
         </button>
-
-        <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700">
-          A
-        </div>
       </div>
     </header>
 
@@ -868,12 +852,21 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
     }
 
+    const sysWidgetMini = document.getElementById('sys-widget-mini');
+    if (sysWidgetMini && mainSidebar) {
+      sysWidgetMini.addEventListener('click', () => {
+        mainSidebar.classList.remove('is-collapsed');
+        localStorage.setItem('cag_sidebar_collapsed', 'false');
+      });
+    }
+
     // Live System Telemetry (Proxmox VM + RAM)
     const sysHost = document.getElementById('sys-host');
     const sysStatusBadge = document.getElementById('sys-status-badge');
     const sysRamBar = document.getElementById('sys-ram-bar');
     const sysFooterLabel = document.getElementById('sys-footer-label');
     const sysRamText = document.getElementById('sys-ram-text');
+    const sysRamMiniText = document.getElementById('sys-ram-mini-text');
 
     async function updateSystemTelemetry() {
       try {
@@ -888,6 +881,9 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const totalGb = ((data.ram_total_mb || 4096) / 1024).toFixed(1);
         if (sysRamText) {
           sysRamText.innerText = `${usedGb} / ${totalGb} GB (${Math.round(data.ram_percent || 35)}%)`;
+        }
+        if (sysRamMiniText) {
+          sysRamMiniText.innerText = `${Math.round(data.ram_percent || 35)}%`;
         }
         if (sysFooterLabel) {
           sysFooterLabel.innerText = `RAM (Redis: ${data.redis_memory || 'OK'})`;
@@ -1632,7 +1628,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <td class="py-3 px-4">
               <div class="font-mono text-gray-900 font-semibold text-xs tabular-nums">${latSec}s</div>
               <span class="text-[10px] ${row.cache_hit || (row.or_cached_tokens > 0) ? 'text-emerald-600 font-semibold' : 'text-gray-400'}">
-                ${row.cache_hit || (row.or_cached_tokens > 0) ? '⚡ Cached' : 'Network'}
+                ${row.cache_hit || (row.or_cached_tokens > 0) ? 'Cached' : 'Network'}
               </span>
             </td>
             <td class="py-3 px-4 text-gray-600 font-mono tabular-nums text-xs">${(row.tokens || 0).toLocaleString('id-ID')}</td>
@@ -1854,7 +1850,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                 <span>⏱️ ${((turn.latency_ms || 0)/1000).toFixed(2)}s</span>
                 <span>🪙 ${(turn.tokens || 0).toLocaleString('id-ID')} tokens</span>
                 <span>💵 Rp ${Math.round((turn.cost || 0) * USD_TO_IDR).toLocaleString('id-ID')}</span>
-                ${turn.cache_hit || (turn.or_cached_tokens > 0) ? '<span class="text-emerald-600 font-semibold">⚡ Cached</span>' : ''}
+                ${turn.cache_hit || (turn.or_cached_tokens > 0) ? '<span class="text-emerald-600 font-semibold">Cached</span>' : ''}
               </div>
             </div>
           </div>
