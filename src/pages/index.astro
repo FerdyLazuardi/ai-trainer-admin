@@ -98,7 +98,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         </div>
 
         <div>
-          <div class="sidebar-text text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-2">Analytics & Intelligence</div>
+          <div class="sidebar-text text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-2">Analytics</div>
           <ul class="space-y-1">
             <li>
               <button data-tab="logs" title="Chat Logs" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-200/60 cursor-pointer transition-all">
@@ -559,6 +559,21 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                   <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Pagination Controls for Chat Logs -->
+          <div class="flex items-center justify-between pt-2 text-xs text-gray-500 font-sans">
+            <span id="log-page-indicator">Showing records</span>
+            
+            <div class="flex items-center gap-1.5 font-semibold">
+              <button id="btn-log-prev" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs">
+                ‹
+              </button>
+              <span id="log-current-page" class="w-8 h-8 rounded-xl bg-gray-900 text-white text-xs flex items-center justify-center font-bold">1</span>
+              <button id="btn-log-next" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs">
+                ›
+              </button>
             </div>
           </div>
 
@@ -1242,6 +1257,16 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     const logSearchInput = document.getElementById('log-search-input');
     const logIntentFilter = document.getElementById('log-intent-filter');
 
+    // Chat Log Pagination State & Elements
+    let chatLogPage = 1;
+    const CHAT_LOG_PAGE_SIZE = 50;
+    let nextLogCursor = null;
+    let isLoadingMoreLogs = false;
+    const logPageIndicator = document.getElementById('log-page-indicator');
+    const btnLogPrev = document.getElementById('btn-log-prev');
+    const btnLogNext = document.getElementById('btn-log-next');
+    const logCurrentPage = document.getElementById('log-current-page');
+
     // Sub-Tabs Navigation Elements
     const logSubtabBtns = document.querySelectorAll('.log-subtab-btn');
     const logSubtabPanes = document.querySelectorAll('.log-subtab-pane');
@@ -1527,6 +1552,26 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       `;
     }
 
+    async function fetchMoreLogs() {
+      if (!nextLogCursor || isLoadingMoreLogs) return;
+      isLoadingMoreLogs = true;
+      if (btnLogNext) btnLogNext.disabled = true;
+      try {
+        const res = await fetch(`/api/logs?limit=500&cursor=${encodeURIComponent(nextLogCursor)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logs && data.logs.length > 0) {
+            rawChatLogs = rawChatLogs.concat(data.logs);
+          }
+          nextLogCursor = data.next_cursor || null;
+        }
+      } catch (e) {
+        console.error('Failed to fetch more logs:', e);
+      } finally {
+        isLoadingMoreLogs = false;
+      }
+    }
+
     async function loadChatLogs() {
       try {
         chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs from FastAPI backend...</td></tr>`;
@@ -1535,13 +1580,32 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const data = await res.json();
 
         const kpis = data.kpis || {};
-        const logs = data.logs || [];
+        let logs = data.logs || [];
         const intents = data.intents || [];
         const trends = data.trends || [];
         const users = data.users || [];
 
+        nextLogCursor = data.next_cursor || null;
+
+        // Auto-fetch remaining batch if next_cursor is present so full history is available
+        if (nextLogCursor) {
+          try {
+            const res2 = await fetch(`/api/logs?limit=500&cursor=${encodeURIComponent(nextLogCursor)}`);
+            if (res2.ok) {
+              const data2 = await res2.json();
+              if (data2.logs && data2.logs.length > 0) {
+                logs = logs.concat(data2.logs);
+              }
+              nextLogCursor = data2.next_cursor || null;
+            }
+          } catch (e) {
+            console.warn('Background log fetch error:', e);
+          }
+        }
+
         rawChatLogs = logs;
         rawUsersLTM = users;
+        chatLogPage = 1;
 
         // Populate KPIs
         logStatQueries.innerText = (kpis.total_queries ?? logs.length).toLocaleString('id-ID');
@@ -1601,18 +1665,39 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         return true;
       });
 
-      if (filtered.length === 0) {
+      const totalRecords = filtered.length;
+      if (totalRecords === 0) {
         chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No matching log records found.</td></tr>`;
+        if (logPageIndicator) logPageIndicator.innerText = 'Showing 0 records';
+        if (logCurrentPage) logCurrentPage.innerText = '1';
+        if (btnLogPrev) btnLogPrev.disabled = true;
+        if (btnLogNext) btnLogNext.disabled = true;
         return;
       }
 
-      chatLogsRows.innerHTML = filtered.slice(0, 100).map((row, idx) => {
+      const totalPages = Math.max(1, Math.ceil(totalRecords / CHAT_LOG_PAGE_SIZE));
+      if (chatLogPage > totalPages) chatLogPage = totalPages;
+      if (chatLogPage < 1) chatLogPage = 1;
+
+      const startIdx = (chatLogPage - 1) * CHAT_LOG_PAGE_SIZE;
+      const endIdx = Math.min(startIdx + CHAT_LOG_PAGE_SIZE, totalRecords);
+      const pageRows = filtered.slice(startIdx, endIdx);
+
+      if (logCurrentPage) logCurrentPage.innerText = String(chatLogPage);
+      if (btnLogPrev) btnLogPrev.disabled = (chatLogPage <= 1);
+      if (btnLogNext) btnLogNext.disabled = (chatLogPage >= totalPages && !nextLogCursor);
+      if (logPageIndicator) {
+        logPageIndicator.innerText = `Showing Page ${chatLogPage} of ${totalPages} (${startIdx + 1}–${endIdx} of ${totalRecords.toLocaleString('id-ID')} records)`;
+      }
+
+      chatLogsRows.innerHTML = pageRows.map((row, relativeIdx) => {
+        const globalIdx = startIdx + relativeIdx;
         const user = parseSessionUser(row.session_id);
         const costIdr = Math.round((row.cost || 0) * USD_TO_IDR);
         const latSec = ((row.latency_ms || 0) / 1000).toFixed(2);
 
         return `
-          <tr data-log-index="${idx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
+          <tr data-log-index="${globalIdx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
             <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
             <td class="py-3 px-4 font-mono text-gray-500 tabular-nums whitespace-nowrap text-xs">
               ${formatTimeNumeric(row.created_at)}
@@ -1710,8 +1795,50 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       return parts[parts.length - 1];
     }
 
-    logSearchInput.addEventListener('input', renderChatLogsTable);
-    logIntentFilter.addEventListener('change', renderChatLogsTable);
+    logSearchInput.addEventListener('input', () => {
+      chatLogPage = 1;
+      renderChatLogsTable();
+    });
+    logIntentFilter.addEventListener('change', () => {
+      chatLogPage = 1;
+      renderChatLogsTable();
+    });
+
+    if (btnLogPrev) {
+      btnLogPrev.addEventListener('click', () => {
+        if (chatLogPage > 1) {
+          chatLogPage--;
+          renderChatLogsTable();
+        }
+      });
+    }
+
+    if (btnLogNext) {
+      btnLogNext.addEventListener('click', async () => {
+        const q = (logSearchInput.value || '').toLowerCase().trim();
+        const intentFilter = logIntentFilter.value;
+        const filtered = rawChatLogs.filter(row => {
+          if (intentFilter !== 'ALL' && row.intent !== intentFilter) return false;
+          if (q) {
+            const queryMatch = (row.query || '').toLowerCase().includes(q);
+            const sessionMatch = (row.session_id || '').toLowerCase().includes(q);
+            const answerMatch = (row.answer || '').toLowerCase().includes(q);
+            if (!queryMatch && !sessionMatch && !answerMatch) return false;
+          }
+          return true;
+        });
+        const totalPages = Math.ceil(filtered.length / CHAT_LOG_PAGE_SIZE);
+
+        if (chatLogPage < totalPages) {
+          chatLogPage++;
+          renderChatLogsTable();
+        } else if (nextLogCursor) {
+          await fetchMoreLogs();
+          chatLogPage++;
+          renderChatLogsTable();
+        }
+      });
+    }
 
     // -------------------------------------------------------------
     // SUB-TABS & SESSION EXPLORER LOGIC
