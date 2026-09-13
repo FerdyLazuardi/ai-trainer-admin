@@ -1,10 +1,6 @@
 import type { APIRoute } from 'astro';
 import { BACKEND_API_URL, ADMIN_API_KEY, SPREADSHEET_SYNC_URL, SPREADSHEET_SYNC_TOKEN } from 'astro:env/server';
 
-// In-memory cache for fast paging & searching (TTL 5 minutes)
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 300_000;
-
 export const GET: APIRoute = async ({ request }) => {
   const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
   const adminKey = ADMIN_API_KEY || '';
@@ -17,20 +13,8 @@ export const GET: APIRoute = async ({ request }) => {
   const limit = url.searchParams.get('limit') || '50';
   const search = url.searchParams.get('search') || '';
   const role = url.searchParams.get('role') || '';
-  const cacheKey = `${scope}:${page}:${limit}:${search}:${role}`;
 
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return new Response(JSON.stringify(cached.data), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Cache': 'HIT',
-      },
-    });
-  }
-
-  // 1. Primary Path: Query PostgreSQL on Proxmox Backend
+  // 1. Primary Path: Query PostgreSQL on Proxmox Backend (Live, No Stale Cache)
   try {
     let pgEndpoint = `${backendUrl}/admin/spreadsheet/${scope}?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
     if (search) {
@@ -49,7 +33,6 @@ export const GET: APIRoute = async ({ request }) => {
     if (pgRes.ok) {
       const data = await pgRes.json();
       data.source = 'postgresql';
-      cache.set(cacheKey, { data, timestamp: Date.now() });
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: {
@@ -93,8 +76,6 @@ export const GET: APIRoute = async ({ request }) => {
       data.role_counts = counts;
     }
 
-    cache.set(cacheKey, { data, timestamp: Date.now() });
-
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: {
@@ -113,9 +94,6 @@ export const GET: APIRoute = async ({ request }) => {
 export const DELETE: APIRoute = async () => {
   const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
   const adminKey = ADMIN_API_KEY || '';
-
-  // Clear in-memory cache
-  cache.clear();
 
   try {
     const res = await fetch(`${backendUrl}/admin/spreadsheet/clean`, {
