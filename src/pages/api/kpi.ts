@@ -127,7 +127,11 @@ export const DELETE: APIRoute = async () => {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return new Response(JSON.stringify({ error: err.detail || `Backend error (HTTP ${res.status})` }), {
+      let msg = err.detail || `Backend error (HTTP ${res.status})`;
+      if (res.status === 404) {
+        msg = 'Endpoint belum aktif di server Proxmox. Jalankan git pull & docker restart cag-lms-backend di Proxmox.';
+      }
+      return new Response(JSON.stringify({ error: msg }), {
         status: res.status,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -144,5 +148,9 @@ export const DELETE: APIRoute = async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+};
+
+export const POST: APIRoute = async (ctx) => {
+  return DELETE(ctx);
 };
 

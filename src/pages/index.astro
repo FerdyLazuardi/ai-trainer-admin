@@ -85,6 +85,45 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     </div>
   </dialog>
 
+  <!-- Confirm Delete All KPI Dialog Modal (Clean Vocalyn Style) -->
+  <dialog id="confirm-delete-kpi-modal" class="fixed inset-0 m-auto z-50 max-w-md w-[92vw] rounded-3xl bg-white border border-gray-200 text-gray-900 p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-xs">
+    <div class="p-6 sm:p-7 space-y-5">
+      <div class="flex items-start gap-4">
+        <div class="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3 class="text-base font-bold text-gray-900 leading-tight">Truncate Database KPI?</h3>
+          <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+            Tindakan ini akan mengosongkan seluruh data pada tabel <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">user_kpi_data</code> dan <code class="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-gray-800 text-[11px]">branch_data</code> di PostgreSQL secara permanen.
+          </p>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+        <span class="text-base leading-none">⚠️</span>
+        <div>
+          <span class="font-bold">Perintah Proxmox:</span><br>
+          <code class="font-mono text-[10px] text-amber-950 break-all">TRUNCATE TABLE user_kpi_data, branch_data RESTART IDENTITY;</code>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button id="btn-cancel-delete-kpi" type="button" class="px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 active:bg-gray-100 text-xs font-semibold text-gray-700 cursor-pointer transition-colors">
+          Batal
+        </button>
+        <button id="btn-confirm-delete-kpi" type="button" class="px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-xs font-semibold text-white shadow-xs cursor-pointer flex items-center gap-2 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span id="confirm-delete-btn-text">Ya, Hapus Semua Data</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Left Sidebar (Vocalyn Exact Match on Desktop + Slide-Over Drawer on Mobile) -->
   <aside id="main-sidebar" class="w-72 lg:w-64 h-full bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-4 lg:py-2 px-3 lg:px-1 select-none space-y-6 transition-[width] duration-200 overflow-y-auto">
     <div class="space-y-6">
@@ -2312,20 +2351,31 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       if (e.key === 'Enter') loadKPIData(1);
     });
 
-    if (btnDeleteAllKpi) {
-      btnDeleteAllKpi.addEventListener('click', async () => {
-        const confirmed = confirm('Apakah Anda yakin ingin menghapus SELURUH data KPI & cabang dari database PostgreSQL? Tindakan ini akan mengosongkan tabel tanpa perlu buka Proxmox.');
-        if (!confirmed) return;
+    const confirmDeleteModal = document.getElementById('confirm-delete-kpi-modal');
+    const btnCancelDeleteKpi = document.getElementById('btn-cancel-delete-kpi');
+    const btnConfirmDeleteKpi = document.getElementById('btn-confirm-delete-kpi');
+    const confirmDeleteBtnText = document.getElementById('confirm-delete-btn-text');
 
-        const origHtml = btnDeleteAllKpi.innerHTML;
-        btnDeleteAllKpi.disabled = true;
-        btnDeleteAllKpi.innerHTML = `
-          <svg class="w-3.5 h-3.5 animate-spin text-rose-600" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-          </svg>
-          <span>Cleaning...</span>
-        `;
+    if (btnDeleteAllKpi && confirmDeleteModal) {
+      btnDeleteAllKpi.addEventListener('click', () => {
+        confirmDeleteModal.showModal();
+      });
+    }
+
+    if (btnCancelDeleteKpi && confirmDeleteModal) {
+      btnCancelDeleteKpi.addEventListener('click', () => {
+        confirmDeleteModal.close();
+      });
+      confirmDeleteModal.addEventListener('click', (e) => {
+        if (e.target === confirmDeleteModal) confirmDeleteModal.close();
+      });
+    }
+
+    if (btnConfirmDeleteKpi) {
+      btnConfirmDeleteKpi.addEventListener('click', async () => {
+        const origText = confirmDeleteBtnText ? confirmDeleteBtnText.innerText : 'Ya, Hapus Semua Data';
+        btnConfirmDeleteKpi.disabled = true;
+        if (confirmDeleteBtnText) confirmDeleteBtnText.innerText = 'Truncating DB...';
 
         try {
           const res = await fetch('/api/kpi', { method: 'DELETE' });
@@ -2333,15 +2383,16 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           if (!res.ok) {
             throw new Error(result.error || `HTTP ${res.status}`);
           }
-          notify(result.message || 'Semua data KPI berhasil dihapus dari database.');
+          if (confirmDeleteModal) confirmDeleteModal.close();
+          notify(result.message || 'Data PostgreSQL berhasil dikosongkan.');
           rawKPIRows = [];
           kpiTotalBadge.innerText = '0';
           await loadKPIData(1);
         } catch (err) {
           notify(`Gagal menghapus data: ${err.message}`, false);
         } finally {
-          btnDeleteAllKpi.disabled = false;
-          btnDeleteAllKpi.innerHTML = origHtml;
+          btnConfirmDeleteKpi.disabled = false;
+          if (confirmDeleteBtnText) confirmDeleteBtnText.innerText = origText;
         }
       });
     }
