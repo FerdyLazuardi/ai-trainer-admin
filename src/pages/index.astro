@@ -703,7 +703,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </div>
           </div>
           <div class="mt-2">
-            <span id="kpi-target-roles" class="text-base font-bold text-gray-900 truncate block" title="BP / BM / AM">BP / BM / AM</span>
+            <span id="kpi-target-roles" class="text-base font-bold text-gray-900 truncate block" title="BP / BM / AM / RM">BP / BM / AM / RM</span>
           </div>
           <span id="kpi-target-subtitle" class="text-[11px] text-gray-400 mt-1 truncate block">Hierarchy: Point → Area → Reg → Pulau</span>
         </div>
@@ -744,6 +744,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               <option value="BP">BP (Business Partner)</option>
               <option value="BM">BM (Business Manager)</option>
               <option value="AM">AM (Area Manager)</option>
+              <option value="RM">RM (Regional Manager)</option>
             </select>
 
             <button id="btn-reload-kpi" class="px-3.5 py-2 rounded-2xl bg-gray-900 text-white text-xs font-semibold hover:bg-black shadow-xs cursor-pointer">
