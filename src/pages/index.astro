@@ -175,34 +175,22 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     <div id="tab-content-sync" class="tab-pane space-y-6">
 
       <!-- Top Metric Cards (5 Columns like Vocalyn) -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <!-- Top Metric Cards (3 Columns) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <!-- Highlighted Total KPI Records Card -->
+        <div class="p-4 rounded-2xl bg-purple-50/50 border-2 border-[#7c51a1] shadow-xs flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Total KPI Records</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <span class="text-xs font-bold text-[#7c51a1] uppercase tracking-wider">Total KPI Records</span>
+            <div class="w-8 h-8 rounded-full border border-[#7c51a1]/30 flex items-center justify-center text-[#7c51a1] bg-white shadow-2xs">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
           </div>
           <div class="mt-2">
             <span id="stat-user-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">7,609</span>
-            <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
           </div>
-          <span class="text-[11px] text-gray-400 mt-1">Synced to table: user_kpi_data</span>
-        </div>
-
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Branch Aggregates</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            </div>
-          </div>
-          <div class="mt-2">
-            <span id="stat-branch-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">800</span>
-            <span class="text-xs font-medium text-gray-500 ml-2">points</span>
-          </div>
-          <span class="text-[11px] text-gray-400 mt-1">Normalized point matching</span>
+          <span class="text-[11px] text-gray-500 mt-1 font-medium">Synced to table: user_kpi_data</span>
         </div>
 
         <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
@@ -253,16 +241,16 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <button
                 id="btn-trigger-sync"
-                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gray-900 hover:bg-black active:bg-gray-800 text-white font-semibold text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-[#7c51a1] hover:bg-[#6d4191] active:bg-[#633a84] text-white font-semibold text-sm transition-all shadow-md shadow-[#7c51a1]/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg id="sync-spinner" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span id="sync-btn-label">Dispatch Sync Now</span>
-                <kbd class="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-gray-800 rounded text-gray-400">⌘↵</kbd>
+                <span id="sync-btn-label">Sync Spreadsheet</span>
+                <kbd class="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-white/20 text-white rounded">⌘↵</kbd>
               </button>
 
               <div class="text-xs text-gray-500 sm:text-right space-y-0.5 font-mono text-[11px]">
-                <div>Target: <span class="text-gray-900 font-semibold">Users & Branches</span></div>
+                <div>Target: <span class="text-gray-900 font-semibold">User KPI (Postgres)</span></div>
                 <div>Method: <span class="text-gray-900 font-semibold">Google Apps Script</span></div>
               </div>
             </div>
@@ -1084,7 +1072,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           const u = data.last_result.users_updated ?? 7609;
           const b = data.last_result.branches_updated ?? 800;
           statUserCount.innerText = u.toLocaleString('id-ID');
-          statBranchCount.innerText = b.toLocaleString('id-ID');
+          if (statBranchCount) statBranchCount.innerText = b.toLocaleString('id-ID');
 
           ledgerRows.innerHTML = `
             <tr class="hover:bg-gray-50 transition-colors">
@@ -1181,7 +1169,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               clearInterval(timerInterval);
               btnSync.disabled = false;
               syncSpinner.classList.remove('animate-spin');
-              syncBtnLabel.innerText = 'Dispatch Sync Now';
+              syncBtnLabel.innerText = 'Sync Spreadsheet';
 
               const r = pollData.result || {};
               if (r.status === 'failed') {
@@ -1213,7 +1201,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               clearInterval(timerInterval);
               btnSync.disabled = false;
               syncSpinner.classList.remove('animate-spin');
-              syncBtnLabel.innerText = 'Dispatch Sync Now';
+              syncBtnLabel.innerText = 'Sync Spreadsheet';
               monitorState.innerText = 'FAILED';
               notify('Worker reported failure', false);
             }
@@ -1226,7 +1214,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         clearInterval(timerInterval);
         btnSync.disabled = false;
         syncSpinner.classList.remove('animate-spin');
-        syncBtnLabel.innerText = 'Dispatch Sync Now';
+        syncBtnLabel.innerText = 'Sync Spreadsheet';
         monitorState.innerText = 'DISPATCH ERROR';
         notify(err.message || 'Dispatch error', false);
       }
