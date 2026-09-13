@@ -409,166 +409,255 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     <!-- ========================================== -->
     <div id="tab-content-logs" class="tab-pane hidden space-y-6">
 
-      <!-- Metrics Row (Vocalyn Clean White Cards) -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Total Queries</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+      <!-- Sub-Tabs Navigation (Recent Logs | Session Explorer | User LTM) -->
+      <div class="flex items-center gap-2 pb-2 border-b border-gray-200/80">
+        <button data-log-subtab="recent" class="log-subtab-btn active px-4 py-2 rounded-full text-xs font-bold text-gray-900 bg-white border border-gray-200/80 shadow-xs cursor-pointer transition-all">
+          Recent Logs & Overview
+        </button>
+        <button data-log-subtab="explorer" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all">
+          Session Explorer
+        </button>
+        <button data-log-subtab="ltm" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all">
+          User LTM Profiles
+        </button>
+      </div>
+
+      <!-- PANE 1: RECENT LOGS & OVERVIEW -->
+      <div id="subtab-pane-recent" class="log-subtab-pane space-y-6">
+
+        <!-- Metrics Row (Vocalyn Clean White Cards) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          
+          <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-500">Total Queries</span>
+              <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+              </div>
             </div>
+            <div class="mt-2">
+              <span id="log-stat-queries" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0</span>
+              <span class="text-xs font-medium text-gray-500 ml-2">turns</span>
+            </div>
+            <span class="text-[11px] text-gray-400 mt-1">Total conversation turns</span>
           </div>
-          <div class="mt-2">
-            <span id="log-stat-queries" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0</span>
-            <span class="text-xs font-medium text-gray-500 ml-2">turns</span>
+
+          <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-500">Avg. Latency</span>
+              <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+            </div>
+            <div class="mt-2">
+              <span id="log-stat-latency" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0.0s</span>
+              <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2">p50</span>
+            </div>
+            <span class="text-[11px] text-gray-400 mt-1">End-to-end response time</span>
           </div>
-          <span class="text-[11px] text-gray-400 mt-1">Total conversation turns</span>
+
+          <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-500">OR Cache Hit Rate</span>
+              <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+            </div>
+            <div class="mt-2">
+              <span id="log-stat-hitrate" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0%</span>
+            </div>
+            <span class="text-[11px] text-gray-400 mt-1">Prompt caching efficiency</span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-500">Estimated Cost</span>
+              <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+            </div>
+            <div class="mt-2">
+              <span id="log-stat-cost" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">Rp 0</span>
+            </div>
+            <span id="log-stat-tokens" class="text-[11px] text-gray-400 mt-1">0 cached tokens</span>
+          </div>
+
         </div>
 
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Avg. Latency</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <!-- Charts Row: Intent Distribution (Donut) & Daily Trends -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Distribusi Intent</h3>
+              <span class="text-[11px] text-gray-400 font-mono">Classification Donut</span>
+            </div>
+            <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[220px]">
+              <div class="text-gray-400 py-6 text-center text-xs">Loading intent donut chart...</div>
             </div>
           </div>
-          <div class="mt-2">
-            <span id="log-stat-latency" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0.0s</span>
-            <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2">p50</span>
+
+          <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Tren Request Harian</h3>
+              <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
+            </div>
+            <div id="trends-chart-container" class="h-48 flex items-end gap-2 pt-4 pb-2">
+              <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+            </div>
           </div>
-          <span class="text-[11px] text-gray-400 mt-1">End-to-end response time</span>
+
         </div>
 
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">OR Cache Hit Rate</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <!-- Chat Logs Table Section -->
+        <div class="space-y-4">
+          
+          <!-- Search & Filter Bar (Vocalyn Exact Match) -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="relative w-full sm:w-80">
+              <input
+                id="log-search-input"
+                type="text"
+                placeholder="Search penanya, query, jawaban..."
+                class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+              />
+              <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
-          </div>
-          <div class="mt-2">
-            <span id="log-stat-hitrate" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0%</span>
-          </div>
-          <span class="text-[11px] text-gray-400 mt-1">Prompt caching efficiency</span>
-        </div>
 
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Estimated Cost</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div class="flex items-center gap-2">
+              <select id="log-intent-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
+                <option value="ALL">Semua Intent</option>
+                <option value="KNOWLEDGE">KNOWLEDGE</option>
+                <option value="COACHING">COACHING</option>
+                <option value="GREETING">GREETING</option>
+                <option value="OFF_SCOPE">OFF_SCOPE</option>
+                <option value="TOPIC_LIST">TOPIC_LIST</option>
+                <option value="AMBIGUOUS">AMBIGUOUS</option>
+                <option value="SECTION_DRILLDOWN">SECTION_DRILLDOWN</option>
+              </select>
             </div>
           </div>
-          <div class="mt-2">
-            <span id="log-stat-cost" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">Rp 0</span>
+
+          <!-- Table -->
+          <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                  <tr>
+                    <th class="py-3.5 px-4 w-8"><input type="checkbox" class="rounded border-gray-300"></th>
+                    <th class="py-3.5 px-4 w-32">Time (WIB)</th>
+                    <th class="py-3.5 px-4 w-44">Penanya</th>
+                    <th class="py-3.5 px-4">Pertanyaan & Jawaban</th>
+                    <th class="py-3.5 px-4 w-28">Intent</th>
+                    <th class="py-3.5 px-4 w-20">Latency</th>
+                    <th class="py-3.5 px-4 w-20">Tokens</th>
+                    <th class="py-3.5 px-4 text-right w-20">Cost (IDR)</th>
+                  </tr>
+                </thead>
+                <tbody id="chat-logs-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+                  <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <span id="log-stat-tokens" class="text-[11px] text-gray-400 mt-1">0 cached tokens</span>
+
         </div>
 
       </div>
 
-      <!-- Charts Row: Intent Distribution (Donut) & Daily Trends -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- PANE 2: SESSION EXPLORER -->
+      <div id="subtab-pane-explorer" class="log-subtab-pane hidden space-y-6">
         
-        <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Distribusi Intent</h3>
-            <span class="text-[11px] text-gray-400 font-mono">Classification Donut</span>
-          </div>
-          <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[220px]">
-            <div class="text-gray-400 py-6 text-center text-xs">Loading intent donut chart...</div>
-          </div>
-        </div>
-
-        <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Tren Request Harian</h3>
-            <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
-          </div>
-          <div id="trends-chart-container" class="h-48 flex items-end gap-2 pt-4 pb-2">
-            <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Chat Logs Table Section -->
-      <div class="space-y-4">
-        
-        <!-- Search & Filter Bar (Vocalyn Exact Match) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="relative w-full sm:w-80">
-            <input
-              id="log-search-input"
-              type="text"
-              placeholder="Search penanya, query, jawaban..."
-              class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
-            />
-            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <div>
+            <h3 class="text-sm font-bold text-gray-900">Eksplorasi Riwayat Sesi</h3>
+            <p class="text-xs text-gray-400">Pilih sesi untuk melihat percakapan lengkap secara kronologis</p>
           </div>
-
-          <div class="flex items-center gap-2">
-            <select id="log-intent-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
-              <option value="ALL">Semua Intent</option>
-              <option value="KNOWLEDGE">KNOWLEDGE</option>
-              <option value="COACHING">COACHING</option>
-              <option value="GREETING">GREETING</option>
-              <option value="OFF_SCOPE">OFF_SCOPE</option>
-              <option value="TOPIC_LIST">TOPIC_LIST</option>
-              <option value="AMBIGUOUS">AMBIGUOUS</option>
-              <option value="SECTION_DRILLDOWN">SECTION_DRILLDOWN</option>
-            </select>
+          <div class="relative w-full sm:w-72">
+            <input
+              id="explorer-search-input"
+              type="text"
+              placeholder="Filter session ID / penanya..."
+              class="w-full pl-9 pr-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+            />
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           </div>
         </div>
 
-        <!-- Table -->
+        <!-- Sessions Aggregation Table -->
         <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
               <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
-                  <th class="py-3.5 px-4 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
-                  <th class="py-3.5 px-4 w-48">Penanya (User & Posisi)</th>
-                  <th class="py-3.5 px-4">Pertanyaan & Jawaban</th>
-                  <th class="py-3.5 px-4 w-32">Intent</th>
-                  <th class="py-3.5 px-4 w-28">Latency</th>
-                  <th class="py-3.5 px-4 w-36">Time (WIB)</th>
-                  <th class="py-3.5 px-4 w-24">Tokens</th>
-                  <th class="py-3.5 px-4 text-right w-24">Cost (IDR)</th>
+                  <th class="py-3 px-4">Penanya</th>
+                  <th class="py-3 px-4">Session ID</th>
+                  <th class="py-3 px-4">Total Turns</th>
+                  <th class="py-3 px-4">Latest Activity</th>
+                  <th class="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody id="chat-logs-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
-                <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
+              <tbody id="session-summary-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+                <tr><td colspan="5" class="py-8 text-center text-gray-400">Memuat riwayat sesi...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
+        <!-- Selected Session Thread Viewer -->
+        <div id="session-thread-container" class="hidden rounded-3xl bg-gray-50/80 border border-gray-200/80 p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
+            <div>
+              <h4 id="thread-session-title" class="text-sm font-bold text-gray-900">Riwayat Percakapan</h4>
+              <p id="thread-session-subtitle" class="text-xs text-gray-500 font-mono mt-0.5">Session ID: —</p>
+            </div>
+            <button id="btn-close-thread" class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 cursor-pointer shadow-2xs">
+              Tutup Percakapan
+            </button>
+          </div>
+          <div id="thread-messages-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+            <!-- Rendered chat bubbles -->
+          </div>
+        </div>
+
       </div>
 
-      <!-- User LTM Profiles Table -->
-      <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
+      <!-- PANE 3: USER LTM PROFILES -->
+      <div id="subtab-pane-ltm" class="log-subtab-pane hidden space-y-6">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="text-sm font-bold text-gray-900">User LTM Profiles</h3>
             <p class="text-xs text-gray-400">Long-Term Memory synthesis stored in PostgreSQL</p>
           </div>
+          <div class="relative w-full sm:w-72">
+            <input
+              id="ltm-search-input"
+              type="text"
+              placeholder="Search User ID or learning summary..."
+              class="w-full pl-9 pr-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+            />
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="text-gray-400 uppercase text-[10px] font-bold tracking-wider border-b border-gray-200">
-              <tr>
-                <th class="py-2.5 px-3">User ID</th>
-                <th class="py-2.5 px-3">Learning Summary</th>
-                <th class="py-2.5 px-3 text-right">Last Updated</th>
-              </tr>
-            </thead>
-            <tbody id="ltm-rows" class="divide-y divide-gray-200/60 text-gray-700">
-              <tr><td colspan="3" class="py-4 text-center text-gray-400">Loading user LTM profiles...</td></tr>
-            </tbody>
-          </table>
+
+        <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider border-b border-gray-200">
+                <tr>
+                  <th class="py-3 px-4 w-32">User ID</th>
+                  <th class="py-3 px-4">Learning Summary</th>
+                  <th class="py-3 px-4 text-right w-44">Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="ltm-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+                <tr><td colspan="3" class="py-8 text-center text-gray-400">Loading user LTM profiles...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
 
     </div>
@@ -1156,6 +1245,46 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     const logSearchInput = document.getElementById('log-search-input');
     const logIntentFilter = document.getElementById('log-intent-filter');
 
+    // Sub-Tabs Navigation Elements
+    const logSubtabBtns = document.querySelectorAll('.log-subtab-btn');
+    const logSubtabPanes = document.querySelectorAll('.log-subtab-pane');
+    let activeLogSubtab = 'recent';
+
+    // Session Explorer Elements
+    const explorerSearchInput = document.getElementById('explorer-search-input');
+    const sessionSummaryRows = document.getElementById('session-summary-rows');
+    const sessionThreadContainer = document.getElementById('session-thread-container');
+    const threadSessionTitle = document.getElementById('thread-session-title');
+    const threadSessionSubtitle = document.getElementById('thread-session-subtitle');
+    const threadMessagesList = document.getElementById('thread-messages-list');
+    const btnCloseThread = document.getElementById('btn-close-thread');
+
+    // User LTM Elements
+    const ltmSearchInput = document.getElementById('ltm-search-input');
+    let rawUsersLTM = [];
+
+    // Compact numeric WIB date-time formatter: DD/MM/YY HH:mm
+    function formatTimeNumeric(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        const parts = new Intl.DateTimeFormat('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: '2-digit',
+          month: '2-digit',
+          year: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).formatToParts(d);
+        const getPart = (t) => parts.find(p => p.type === t)?.value || '';
+        return `${getPart('day')}/${getPart('month')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
+      } catch {
+        return iso;
+      }
+    }
+
     // Intent color palette matching Streamlit CAG dashboard reference
     const INTENT_CONFIG = {
       'KNOWLEDGE': {
@@ -1347,12 +1476,13 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
         paths += `<path d="${d}" fill="${color}" stroke="#FFFFFF" stroke-width="1.5" class="transition-opacity duration-200 hover:opacity-85 cursor-pointer"><title>${item.intent}: ${count} (${(fraction * 100).toFixed(1)}%)</title></path>`;
 
-        if (fraction >= 0.035) {
+        // Only display in-slice label text for slices >= 15% to avoid cluttered/overlapping numbers
+        if (fraction >= 0.15) {
           const midAngle = startAngle + angle / 2;
           const rLabel = (rOut + rIn) / 2;
           const lx = cx + rLabel * Math.cos(midAngle);
           const ly = cy + rLabel * Math.sin(midAngle);
-          const pctStr = (fraction * 100).toFixed(fraction >= 0.1 ? 1 : 2) + '%';
+          const pctStr = (fraction * 100).toFixed(1) + '%';
           labels += `<text x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" text-anchor="middle" dominant-baseline="central" fill="#FFFFFF" class="text-[9px] font-bold font-mono pointer-events-none drop-shadow-xs">${pctStr}</text>`;
         }
 
@@ -1406,6 +1536,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const users = data.users || [];
 
         rawChatLogs = logs;
+        rawUsersLTM = users;
 
         // Populate KPIs
         logStatQueries.innerText = (kpis.total_queries ?? logs.length).toLocaleString('id-ID');
@@ -1438,17 +1569,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         }
 
         renderChatLogsTable();
+        renderLTMTable();
 
-        if (users.length > 0) {
-          ltmRows.innerHTML = users.map(u => `
-            <tr class="hover:bg-gray-50 transition-colors">
-              <td class="py-2.5 px-3 font-bold text-gray-900">${u.user_id}</td>
-              <td class="py-2.5 px-3 text-gray-700 whitespace-pre-line text-xs">${u.learning_summary || '—'}</td>
-              <td class="py-2.5 px-3 text-right text-gray-400 tabular-nums">${formatTime(u.updated_at)}</td>
-            </tr>
-          `).join('');
-        } else {
-          ltmRows.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-gray-400">No user LTM records.</td></tr>`;
+        if (activeLogSubtab === 'explorer') {
+          renderSessionExplorer();
         }
 
       } catch (err) {
@@ -1481,27 +1605,25 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const user = parseSessionUser(row.session_id);
         const costIdr = Math.round((row.cost || 0) * USD_TO_IDR);
         const latSec = ((row.latency_ms || 0) / 1000).toFixed(2);
-        
-        let ansPreview = row.answer || '—';
-        if (ansPreview.length > 95) {
-          ansPreview = ansPreview.slice(0, 95).trim() + '...';
-        }
 
         return `
           <tr data-log-index="${idx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
             <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="py-3 px-4 font-mono text-gray-500 tabular-nums whitespace-nowrap text-xs">
+              ${formatTimeNumeric(row.created_at)}
+            </td>
             <td class="py-3 px-4">
-              <div class="font-bold text-gray-900 truncate" title="${escapeHtml(row.session_id || '')}">${escapeHtml(user.name)}</div>
+              <div class="font-bold text-gray-900 truncate max-w-[170px]" title="${escapeHtml(row.session_id || '')}">${escapeHtml(user.name)}</div>
               <div class="mt-0.5">
-                <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px] whitespace-nowrap">
+                <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px] whitespace-nowrap truncate max-w-[170px]">
                   ${escapeHtml(user.role)}
                 </span>
               </div>
             </td>
-            <td class="py-3 px-4 max-w-sm sm:max-w-md">
-              <div class="font-semibold text-gray-900 text-xs">${escapeHtml(row.query || '—')}</div>
-              <div class="text-[11px] text-gray-500 mt-1 line-clamp-2 leading-relaxed font-sans" title="${escapeHtml(row.answer || '')}">
-                ${escapeHtml(ansPreview)}
+            <td class="py-3 px-4 max-w-xs sm:max-w-md md:max-w-lg min-w-0">
+              <div class="font-semibold text-gray-900 text-xs truncate" title="${escapeHtml(row.query || '—')}">${escapeHtml(row.query || '—')}</div>
+              <div class="text-[11px] text-gray-500 mt-0.5 truncate font-sans" title="${escapeHtml(row.answer || '')}">
+                ${escapeHtml(row.answer || '—')}
               </div>
             </td>
             <td class="py-3 px-4">
@@ -1513,7 +1635,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                 ${row.cache_hit || (row.or_cached_tokens > 0) ? '⚡ Cached' : 'Network'}
               </span>
             </td>
-            <td class="py-3 px-4 text-gray-400 tabular-nums whitespace-nowrap text-xs">${formatTime(row.created_at)}</td>
             <td class="py-3 px-4 text-gray-600 font-mono tabular-nums text-xs">${(row.tokens || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-4 text-right text-gray-900 font-bold tabular-nums">Rp ${costIdr.toLocaleString('id-ID')}</td>
           </tr>
@@ -1586,6 +1707,203 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
     logSearchInput.addEventListener('input', renderChatLogsTable);
     logIntentFilter.addEventListener('change', renderChatLogsTable);
+
+    // -------------------------------------------------------------
+    // SUB-TABS & SESSION EXPLORER LOGIC
+    // -------------------------------------------------------------
+    logSubtabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const subtab = btn.getAttribute('data-log-subtab');
+        if (subtab === activeLogSubtab) return;
+        activeLogSubtab = subtab;
+
+        logSubtabBtns.forEach(b => {
+          b.classList.remove('active', 'text-gray-900', 'bg-white', 'border', 'border-gray-200/80', 'shadow-xs', 'font-bold');
+          b.classList.add('text-gray-500', 'hover:text-gray-900', 'hover:bg-gray-100', 'font-semibold');
+        });
+        btn.classList.add('active', 'text-gray-900', 'bg-white', 'border', 'border-gray-200/80', 'shadow-xs', 'font-bold');
+        btn.classList.remove('text-gray-500', 'hover:text-gray-900', 'hover:bg-gray-100', 'font-semibold');
+
+        logSubtabPanes.forEach(p => p.classList.add('hidden'));
+        const targetPane = document.getElementById(`subtab-pane-${subtab}`);
+        if (targetPane) targetPane.classList.remove('hidden');
+
+        if (subtab === 'explorer') {
+          renderSessionExplorer();
+        } else if (subtab === 'ltm') {
+          renderLTMTable();
+        }
+      });
+    });
+
+    // Group rawChatLogs by session_id
+    function getGroupedSessions() {
+      const groups = new Map();
+      rawChatLogs.forEach(log => {
+        const sId = log.session_id || 'Unknown';
+        if (!groups.has(sId)) {
+          groups.set(sId, []);
+        }
+        groups.get(sId).push(log);
+      });
+
+      const sessionList = [];
+      groups.forEach((turns, sId) => {
+        turns.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        const latestTurn = turns[turns.length - 1];
+        const user = parseSessionUser(sId);
+        sessionList.push({
+          sessionId: sId,
+          user,
+          turns,
+          turnsCount: turns.length,
+          latestActivity: latestTurn?.created_at || ''
+        });
+      });
+
+      sessionList.sort((a, b) => new Date(b.latestActivity || 0) - new Date(a.latestActivity || 0));
+      return sessionList;
+    }
+
+    function renderSessionExplorer() {
+      if (!sessionSummaryRows) return;
+      const q = (explorerSearchInput?.value || '').toLowerCase().trim();
+      const sessions = getGroupedSessions();
+
+      const filtered = sessions.filter(s => {
+        if (!q) return true;
+        const matchId = s.sessionId.toLowerCase().includes(q);
+        const matchName = s.user.name.toLowerCase().includes(q);
+        const matchRole = s.user.role.toLowerCase().includes(q);
+        return matchId || matchName || matchRole;
+      });
+
+      if (filtered.length === 0) {
+        sessionSummaryRows.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">Tidak ada sesi yang cocok.</td></tr>`;
+        return;
+      }
+
+      sessionSummaryRows.innerHTML = filtered.map((s, idx) => `
+        <tr data-session-idx="${idx}" class="session-summary-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
+          <td class="py-3 px-4">
+            <div class="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">${escapeHtml(s.user.name)}</div>
+            <div class="mt-0.5">
+              <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px]">
+                ${escapeHtml(s.user.role)}
+              </span>
+            </div>
+          </td>
+          <td class="py-3 px-4 font-mono text-gray-500 text-xs truncate max-w-[220px]" title="${escapeHtml(s.sessionId)}">
+            ${escapeHtml(s.sessionId)}
+          </td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+              ${s.turnsCount} turns
+            </span>
+          </td>
+          <td class="py-3 px-4 font-mono text-gray-500 tabular-nums text-xs whitespace-nowrap">
+            ${formatTimeNumeric(s.latestActivity)}
+          </td>
+          <td class="py-3 px-4 text-right">
+            <button class="btn-open-session px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 shadow-2xs cursor-pointer group-hover:border-gray-300">
+              Lihat Chat ›
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('.session-summary-row').forEach(tr => {
+        tr.addEventListener('click', () => {
+          const idx = parseInt(tr.getAttribute('data-session-idx'), 10);
+          const selected = filtered[idx];
+          if (selected) openSessionThread(selected);
+        });
+      });
+    }
+
+    function openSessionThread(sessionGroup) {
+      if (!sessionGroup || !sessionThreadContainer) return;
+
+      threadSessionTitle.innerText = `${sessionGroup.user.name} (${sessionGroup.user.role})`;
+      threadSessionSubtitle.innerText = `Session ID: ${sessionGroup.sessionId} • ${sessionGroup.turnsCount} percakapan • Terakhir: ${formatTimeNumeric(sessionGroup.latestActivity)}`;
+
+      threadMessagesList.innerHTML = sessionGroup.turns.map((turn, idx) => `
+        <div class="space-y-3 pb-4 border-b border-gray-200/50 last:border-0">
+          <div class="flex items-center justify-between text-[11px] text-gray-400 font-mono">
+            <span>Turn #${idx + 1}</span>
+            <span>${formatTimeNumeric(turn.created_at)}</span>
+          </div>
+
+          <!-- User Bubble -->
+          <div class="flex justify-end">
+            <div class="max-w-[85%] rounded-2xl rounded-tr-xs bg-gray-900 text-white p-3.5 shadow-2xs">
+              <div class="text-[10px] uppercase font-bold text-gray-400 mb-1">${escapeHtml(sessionGroup.user.name)}</div>
+              <div class="text-xs font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.query || '—')}</div>
+            </div>
+          </div>
+
+          <!-- Assistant Bubble -->
+          <div class="flex justify-start">
+            <div class="max-w-[85%] rounded-2xl rounded-tl-xs bg-white border border-gray-200 p-3.5 space-y-2 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-gray-500">AI Assistant</span>
+                ${getIntentBadge(turn.intent)}
+              </div>
+              <div class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.answer || '—')}</div>
+              <div class="flex flex-wrap items-center gap-3 pt-1 text-[10px] text-gray-400 font-mono border-t border-gray-100">
+                <span>⏱️ ${((turn.latency_ms || 0)/1000).toFixed(2)}s</span>
+                <span>🪙 ${(turn.tokens || 0).toLocaleString('id-ID')} tokens</span>
+                <span>💵 Rp ${Math.round((turn.cost || 0) * USD_TO_IDR).toLocaleString('id-ID')}</span>
+                ${turn.cache_hit || (turn.or_cached_tokens > 0) ? '<span class="text-emerald-600 font-semibold">⚡ Cached</span>' : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      sessionThreadContainer.classList.remove('hidden');
+      sessionThreadContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (btnCloseThread) {
+      btnCloseThread.addEventListener('click', () => {
+        sessionThreadContainer.classList.add('hidden');
+      });
+    }
+
+    if (explorerSearchInput) {
+      explorerSearchInput.addEventListener('input', renderSessionExplorer);
+    }
+
+    // Render User LTM Table
+    function renderLTMTable() {
+      if (!ltmRows) return;
+      const q = (ltmSearchInput?.value || '').toLowerCase().trim();
+
+      const filtered = rawUsersLTM.filter(u => {
+        if (!q) return true;
+        const matchId = String(u.user_id || '').toLowerCase().includes(q);
+        const matchSummary = String(u.learning_summary || '').toLowerCase().includes(q);
+        return matchId || matchSummary;
+      });
+
+      if (filtered.length === 0) {
+        ltmRows.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-gray-400">Tidak ada data profil LTM yang cocok.</td></tr>`;
+        return;
+      }
+
+      ltmRows.innerHTML = filtered.map(u => `
+        <tr class="hover:bg-gray-50/80 transition-colors">
+          <td class="py-3 px-4 font-mono font-bold text-gray-900">${escapeHtml(u.user_id || '—')}</td>
+          <td class="py-3 px-4 text-gray-700 whitespace-pre-line text-xs leading-relaxed">${escapeHtml(u.learning_summary || '—')}</td>
+          <td class="py-3 px-4 text-right font-mono text-gray-400 tabular-nums text-xs whitespace-nowrap">${formatTimeNumeric(u.updated_at)}</td>
+        </tr>
+      `).join('');
+    }
+
+    if (ltmSearchInput) {
+      ltmSearchInput.addEventListener('input', renderLTMTable);
+    }
 
     // -------------------------------------------------------------
     // TAB 3: SPREADSHEET KPI DIRECTORY (POSTGRESQL DATA)
