@@ -151,10 +151,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         <!-- Highlighted Total KPI Records Card -->
-        <div class="p-4 rounded-2xl bg-blue-50/50 border-2 border-[#0055b8] shadow-xs flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
+        <div class="p-4 rounded-2xl bg-emerald-50/60 border-2 border-emerald-600 shadow-xs flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-[#0055b8] uppercase tracking-wider">Total KPI Records</span>
-            <div class="w-8 h-8 rounded-full border border-[#0055b8]/30 flex items-center justify-center text-[#0055b8] bg-white shadow-2xs">
+            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Total KPI Records</span>
+            <div class="w-8 h-8 rounded-full border border-emerald-600/30 flex items-center justify-center text-emerald-700 bg-white shadow-2xs">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
           </div>
@@ -213,12 +213,11 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <button
                 id="btn-trigger-sync"
-                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-[#0055b8] hover:bg-[#00489e] active:bg-[#003c84] text-white font-semibold text-sm transition-all shadow-md shadow-[#0055b8]/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm transition-all shadow-md shadow-emerald-600/25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg id="sync-spinner" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span id="sync-btn-label">Sync Spreadsheet</span>
-                <kbd class="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-white/20 text-white rounded">⌘↵</kbd>
               </button>
 
               <div class="text-xs text-gray-500 sm:text-right space-y-0.5 font-mono text-[11px]">
