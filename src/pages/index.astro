@@ -703,9 +703,9 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </div>
           </div>
           <div class="mt-2">
-            <span class="text-lg font-bold text-gray-900">BP / BM / AM</span>
+            <span id="kpi-target-roles" class="text-base font-bold text-gray-900 truncate block" title="BP / BM / AM">BP / BM / AM</span>
           </div>
-          <span class="text-[11px] text-gray-400 mt-1">Hierarchy: Point → Area → Reg → Pulau</span>
+          <span id="kpi-target-subtitle" class="text-[11px] text-gray-400 mt-1 truncate block">Hierarchy: Point → Area → Reg → Pulau</span>
         </div>
 
         <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
@@ -2033,6 +2033,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     const kpiTableRows = document.getElementById('kpi-table-rows');
     const kpiSearchInput = document.getElementById('kpi-search-input');
     const kpiRoleFilter = document.getElementById('kpi-role-filter');
+    const kpiTargetRoles = document.getElementById('kpi-target-roles');
+    const kpiTargetSubtitle = document.getElementById('kpi-target-subtitle');
     const btnReloadKpi = document.getElementById('btn-reload-kpi');
     const btnKpiPrev = document.getElementById('btn-kpi-prev');
     const btnKpiNext = document.getElementById('btn-kpi-next');
@@ -2045,11 +2047,13 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       btnKpiPrev.disabled = page <= 1;
 
       const q = (kpiSearchInput.value || '').trim();
+      const roleFilter = kpiRoleFilter ? kpiRoleFilter.value : 'ALL';
 
       try {
-        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Querying PostgreSQL table on Proxmox...</td></tr>`;
+        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>`;
         let url = `/api/kpi?scope=users&page=${page}&limit=50`;
         if (q) url += `&search=${encodeURIComponent(q)}`;
+        if (roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2061,6 +2065,24 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         const total = data.total ?? data.users_total ?? users.length;
         kpiTotalBadge.innerText = Number(total).toLocaleString('id-ID');
         kpiPageIndicator.innerText = `Showing Page ${page} (${users.length} of ${Number(total).toLocaleString('id-ID')} records)`;
+
+        // Dynamically update Target Users Card
+        if (data.role_counts && Object.keys(data.role_counts).length > 0) {
+          const roleEntries = Object.entries(data.role_counts).filter(([r]) => r && r !== 'UNKNOWN');
+          if (roleEntries.length > 0 && kpiTargetRoles) {
+            const formatted = roleEntries.map(([r, c]) => `${r} (${Number(c).toLocaleString('id-ID')})`).join(' • ');
+            kpiTargetRoles.innerText = formatted;
+            kpiTargetRoles.title = formatted;
+          }
+          if (kpiTargetSubtitle) {
+            kpiTargetSubtitle.innerText = `${roleEntries.length} Active Roles in Spreadsheet KPI`;
+          }
+        } else if (users.length > 0 && kpiTargetRoles) {
+          const uniqueRoles = [...new Set(users.map(u => u.role || u.position).filter(Boolean))];
+          if (uniqueRoles.length > 0) {
+            kpiTargetRoles.innerText = uniqueRoles.join(' • ');
+          }
+        }
         
         renderKPITable();
 
@@ -2168,7 +2190,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
     }
 
-    kpiRoleFilter.addEventListener('change', renderKPITable);
+    kpiRoleFilter.addEventListener('change', () => loadKPIData(1));
     btnReloadKpi.addEventListener('click', () => loadKPIData(1));
     kpiSearchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') loadKPIData(1);

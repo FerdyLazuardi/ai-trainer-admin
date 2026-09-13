@@ -1,9 +1,9 @@
 import type { APIRoute } from 'astro';
 import { BACKEND_API_URL, ADMIN_API_KEY, SPREADSHEET_SYNC_URL, SPREADSHEET_SYNC_TOKEN } from 'astro:env/server';
 
-// In-memory cache for fast paging & searching (TTL 60s)
+// In-memory cache for fast paging & searching (TTL 5 minutes)
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 300_000;
 
 export const GET: APIRoute = async ({ request }) => {
   const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
@@ -16,7 +16,8 @@ export const GET: APIRoute = async ({ request }) => {
   const page = url.searchParams.get('page') || '1';
   const limit = url.searchParams.get('limit') || '50';
   const search = url.searchParams.get('search') || '';
-  const cacheKey = `${scope}:${page}:${limit}:${search}`;
+  const role = url.searchParams.get('role') || '';
+  const cacheKey = `${scope}:${page}:${limit}:${search}:${role}`;
 
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -34,6 +35,9 @@ export const GET: APIRoute = async ({ request }) => {
     let pgEndpoint = `${backendUrl}/admin/spreadsheet/${scope}?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
     if (search) {
       pgEndpoint += `&search=${encodeURIComponent(search)}`;
+    }
+    if (role && role !== 'ALL') {
+      pgEndpoint += `&role=${encodeURIComponent(role)}`;
     }
 
     const pgRes = await fetch(pgEndpoint, {
@@ -60,7 +64,14 @@ export const GET: APIRoute = async ({ request }) => {
 
   // 2. Fallback Path: Google Apps Script API (if backend route not yet deployed)
   try {
-    const targetUrl = `${gasUrl}?token=${encodeURIComponent(token)}&scope=${encodeURIComponent(scope)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+    let targetUrl = `${gasUrl}?token=${encodeURIComponent(token)}&scope=${encodeURIComponent(scope)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+    if (search) {
+      targetUrl += `&search=${encodeURIComponent(search)}`;
+    }
+    if (role && role !== 'ALL') {
+      targetUrl += `&role=${encodeURIComponent(role)}`;
+    }
+
     const res = await fetch(targetUrl, {
       headers: { 'Accept': 'application/json' },
     });
@@ -71,6 +82,17 @@ export const GET: APIRoute = async ({ request }) => {
 
     const data = await res.json();
     data.source = 'google_apps_script';
+
+    // Compute dynamic role counts if not already present
+    if (!data.role_counts && Array.isArray(data.users)) {
+      const counts: Record<string, number> = {};
+      for (const u of data.users) {
+        const r = (u.role || u.position || 'UNKNOWN').toUpperCase();
+        counts[r] = (counts[r] || 0) + 1;
+      }
+      data.role_counts = counts;
+    }
+
     cache.set(cacheKey, { data, timestamp: Date.now() });
 
     return new Response(JSON.stringify(data), {
