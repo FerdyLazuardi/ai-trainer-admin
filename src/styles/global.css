@@ -59,21 +59,11 @@ body {
     width: 1.25rem !important;
     height: 1.25rem !important;
   }
-  #main-sidebar.is-collapsed #sys-widget-card {
-    display: none !important;
-  }
-  #main-sidebar.is-collapsed #sys-widget-mini {
-    display: flex !important;
-    width: 2.75rem !important;
-    margin: 0 auto !important;
-  }
 }
 
 /* Mobile responsive collapse state */
 @media (max-width: 1023px) {
-  #main-sidebar.is-collapsed nav,
-  #main-sidebar.is-collapsed #sys-widget-card,
-  #main-sidebar.is-collapsed #sys-widget-mini {
+  #main-sidebar.is-collapsed nav {
     display: none !important;
   }
   #main-sidebar.is-collapsed #sidebar-toggle-icon {

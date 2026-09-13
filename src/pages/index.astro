@@ -116,34 +116,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       </nav>
 
     </div>
-
-    <!-- Sidebar Bottom System Info Card (Dynamic Live Telemetry) -->
-    <div id="sys-widget-card" class="bg-white rounded-2xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-      <div class="flex items-center justify-between text-xs font-bold text-gray-900">
-        <span class="flex items-center gap-1.5 truncate">
-          <svg class="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
-          <span id="sys-host" class="sidebar-text truncate">Proxmox VM</span>
-        </span>
-        <span id="sys-status-badge" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span class="sidebar-text">Online</span>
-        </span>
-      </div>
-      
-      <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-        <div id="sys-ram-bar" class="h-1.5 rounded-full bg-gray-900 transition-all duration-500" style="width: 35%"></div>
-      </div>
-
-      <div class="flex items-center justify-between text-[11px] font-mono text-gray-400">
-        <span class="sidebar-text" id="sys-footer-label">Proxmox RAM</span>
-        <span id="sys-ram-text" class="tabular-nums">1.4 / 4.0 GB</span>
-      </div>
-    </div>
-
-    <!-- Mini Indicator when Sidebar is Collapsed -->
-    <div id="sys-widget-mini" class="hidden flex-col items-center justify-center p-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs cursor-pointer hover:border-gray-300 transition-all" title="Proxmox VM Online">
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-      <span id="sys-ram-mini-text" class="text-[9px] font-mono font-bold text-gray-600 mt-1">35%</span>
-    </div>
   </aside>
 
   <!-- Main Content Canvas (Pure White Vocalyn Panel) -->
@@ -179,10 +151,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         <!-- Highlighted Total KPI Records Card -->
-        <div class="p-4 rounded-2xl bg-purple-50/50 border-2 border-[#7c51a1] shadow-xs flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
+        <div class="p-4 rounded-2xl bg-blue-50/50 border-2 border-[#0055b8] shadow-xs flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-[#7c51a1] uppercase tracking-wider">Total KPI Records</span>
-            <div class="w-8 h-8 rounded-full border border-[#7c51a1]/30 flex items-center justify-center text-[#7c51a1] bg-white shadow-2xs">
+            <span class="text-xs font-bold text-[#0055b8] uppercase tracking-wider">Total KPI Records</span>
+            <div class="w-8 h-8 rounded-full border border-[#0055b8]/30 flex items-center justify-center text-[#0055b8] bg-white shadow-2xs">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
           </div>
@@ -241,7 +213,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <button
                 id="btn-trigger-sync"
-                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-[#7c51a1] hover:bg-[#6d4191] active:bg-[#633a84] text-white font-semibold text-sm transition-all shadow-md shadow-[#7c51a1]/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-[#0055b8] hover:bg-[#00489e] active:bg-[#003c84] text-white font-semibold text-sm transition-all shadow-md shadow-[#0055b8]/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg id="sync-spinner" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -855,51 +827,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
     }
 
-    const sysWidgetMini = document.getElementById('sys-widget-mini');
-    if (sysWidgetMini && mainSidebar) {
-      sysWidgetMini.addEventListener('click', () => {
-        mainSidebar.classList.remove('is-collapsed');
-        localStorage.setItem('cag_sidebar_collapsed', 'false');
-      });
-    }
-
-    // Live System Telemetry (Proxmox VM + RAM)
-    const sysHost = document.getElementById('sys-host');
-    const sysStatusBadge = document.getElementById('sys-status-badge');
-    const sysRamBar = document.getElementById('sys-ram-bar');
-    const sysFooterLabel = document.getElementById('sys-footer-label');
-    const sysRamText = document.getElementById('sys-ram-text');
-    const sysRamMiniText = document.getElementById('sys-ram-mini-text');
-
-    async function updateSystemTelemetry() {
-      try {
-        const res = await fetch('/api/system');
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        if (sysHost) sysHost.innerText = data.host || 'Proxmox VM';
-        if (sysRamBar) sysRamBar.style.width = `${Math.min(100, Math.max(10, data.ram_percent || 35))}%`;
-        
-        const usedGb = ((data.ram_used_mb || 1400) / 1024).toFixed(1);
-        const totalGb = ((data.ram_total_mb || 4096) / 1024).toFixed(1);
-        if (sysRamText) {
-          sysRamText.innerText = `${usedGb} / ${totalGb} GB (${Math.round(data.ram_percent || 35)}%)`;
-        }
-        if (sysRamMiniText) {
-          sysRamMiniText.innerText = `${Math.round(data.ram_percent || 35)}%`;
-        }
-        if (sysFooterLabel) {
-          sysFooterLabel.innerText = `RAM (Redis: ${data.redis_memory || 'OK'})`;
-        }
-        if (sysStatusBadge) {
-          sysStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span class="sidebar-text">Online</span>`;
-        }
-      } catch (e) {
-        // preserve fallback
-      }
-    }
-    updateSystemTelemetry();
-    setInterval(updateSystemTelemetry, 15000);
 
     // Tab Switching
     const tabButtons = document.querySelectorAll('.tab-btn');
