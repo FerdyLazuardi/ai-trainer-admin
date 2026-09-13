@@ -10,8 +10,13 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ai - Trainer • Operations & Analytics Cockpit</title>
+  <title>Dashboard Ai - Trainer • Operations & Analytics Cockpit</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -66,15 +71,11 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
   <aside id="main-sidebar" class="w-full lg:w-64 bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-2 px-1 select-none space-y-6 transition-[width] duration-200 overflow-hidden">
     <div class="space-y-6">
       
-      <!-- Brand & Product Title with Amartha SVG Logo & Collapse Toggle -->
+      <!-- Brand & Product Title & Collapse Toggle -->
       <div class="sidebar-header flex items-center justify-between px-3">
-        <div class="sidebar-brand-logo flex items-center gap-2.5 min-w-0 overflow-hidden">
-          <div class="w-9 h-9 rounded-xl bg-white border border-gray-200/80 flex items-center justify-center p-1.5 shadow-2xs shrink-0">
-            <img src="/amartha.svg" alt="Ai - Trainer" class="w-full h-full object-contain" />
-          </div>
-          <div class="sidebar-text truncate">
-            <div class="font-extrabold text-base text-gray-900 tracking-tight">Ai - Trainer</div>
-          </div>
+        <div class="sidebar-brand-logo sidebar-text min-w-0">
+          <div class="font-extrabold text-base text-gray-900 tracking-tight leading-tight">Dashboard</div>
+          <div class="font-bold text-xs text-gray-500 tracking-wide leading-tight mt-0.5">Ai - Trainer</div>
         </div>
 
         <button id="sidebar-toggle-btn" title="Toggle Sidebar" class="w-7 h-7 rounded-lg border border-gray-200/80 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-2xs">
