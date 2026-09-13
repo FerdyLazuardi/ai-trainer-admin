@@ -6,12 +6,12 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 ---
 
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Amartha CAG • Operations & Analytics Cockpit</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <title>Ai - Trainer • Operations & Analytics Cockpit</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -44,20 +44,36 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     </div>
   </dialog>
 
+  <!-- Session Chat Thread Dialog Modal -->
+  <dialog id="thread-modal" class="fixed inset-0 m-auto z-50 max-w-3xl w-[94vw] rounded-3xl bg-white border border-gray-200 text-gray-900 p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-xs">
+    <div class="p-6 sm:p-8 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div>
+          <h3 id="thread-session-title" class="text-base font-bold text-gray-900">Conversation History</h3>
+          <p id="thread-session-subtitle" class="text-xs text-gray-400 font-mono mt-0.5">Session ID: —</p>
+        </div>
+        <button id="btn-close-thread-modal" class="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="thread-messages-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <!-- Rendered chat bubbles -->
+      </div>
+    </div>
+  </dialog>
+
   <!-- Left Sidebar (Vocalyn Exact Match) -->
   <aside id="main-sidebar" class="w-full lg:w-64 bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-2 px-1 select-none space-y-6 transition-[width] duration-200 overflow-hidden">
     <div class="space-y-6">
       
-      <!-- Brand & Product Title with Diamond Logo & Collapse Toggle -->
+      <!-- Brand & Product Title with Amartha SVG Logo & Collapse Toggle -->
       <div class="sidebar-header flex items-center justify-between px-3">
-        <div class="sidebar-brand-logo flex items-center gap-3 min-w-0 overflow-hidden">
-          <div class="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-xs shrink-0">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
+        <div class="sidebar-brand-logo flex items-center gap-2.5 min-w-0 overflow-hidden">
+          <div class="w-9 h-9 rounded-xl bg-white border border-gray-200/80 flex items-center justify-center p-1.5 shadow-2xs shrink-0">
+            <img src="/amartha.svg" alt="Ai - Trainer" class="w-full h-full object-contain" />
           </div>
           <div class="sidebar-text truncate">
-            <div class="font-extrabold text-base text-gray-900 tracking-tight">Amartha CAG</div>
+            <div class="font-extrabold text-base text-gray-900 tracking-tight">Ai - Trainer</div>
           </div>
         </div>
 
@@ -483,7 +499,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
           <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
             <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Tren Request Harian</h3>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Daily Request Trends</h3>
               <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
             </div>
             <div id="trends-chart-container" class="h-48 flex items-end gap-2 pt-4 pb-2">
@@ -502,7 +518,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               <input
                 id="log-search-input"
                 type="text"
-                placeholder="Search penanya, query, jawaban..."
+                placeholder="Search user, query, response..."
                 class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
               />
               <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -510,7 +526,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 
             <div class="flex items-center gap-2">
               <select id="log-intent-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
-                <option value="ALL">Semua Intent</option>
+                <option value="ALL">All Intents</option>
                 <option value="KNOWLEDGE">KNOWLEDGE</option>
                 <option value="COACHING">COACHING</option>
                 <option value="GREETING">GREETING</option>
@@ -530,8 +546,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                   <tr>
                     <th class="py-3.5 px-4 w-8"><input type="checkbox" class="rounded border-gray-300"></th>
                     <th class="py-3.5 px-4 w-32">Time (WIB)</th>
-                    <th class="py-3.5 px-4 w-44">Penanya</th>
-                    <th class="py-3.5 px-4">Pertanyaan & Jawaban</th>
+                    <th class="py-3.5 px-4 w-44">User / Role</th>
+                    <th class="py-3.5 px-4">Query & Response</th>
                     <th class="py-3.5 px-4 w-28">Intent</th>
                     <th class="py-3.5 px-4 w-20">Latency</th>
                     <th class="py-3.5 px-4 w-20">Tokens</th>
@@ -554,14 +570,14 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-sm font-bold text-gray-900">Eksplorasi Riwayat Sesi</h3>
-            <p class="text-xs text-gray-400">Pilih sesi untuk melihat percakapan lengkap secara kronologis</p>
+            <h3 class="text-sm font-bold text-gray-900">Session History Explorer</h3>
+            <p class="text-xs text-gray-400">Select a session to view chronological conversation turns in a modal</p>
           </div>
           <div class="relative w-full sm:w-72">
             <input
               id="explorer-search-input"
               type="text"
-              placeholder="Filter session ID / penanya..."
+              placeholder="Filter session ID / user..."
               class="w-full pl-9 pr-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
             />
             <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -574,33 +590,17 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <table class="w-full text-left text-xs">
               <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
                 <tr>
-                  <th class="py-3 px-4">Penanya</th>
+                  <th class="py-3 px-4">User</th>
                   <th class="py-3 px-4">Session ID</th>
                   <th class="py-3 px-4">Total Turns</th>
                   <th class="py-3 px-4">Latest Activity</th>
-                  <th class="py-3 px-4 text-right">Aksi</th>
+                  <th class="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody id="session-summary-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
-                <tr><td colspan="5" class="py-8 text-center text-gray-400">Memuat riwayat sesi...</td></tr>
+                <tr><td colspan="5" class="py-8 text-center text-gray-400">Loading session records...</td></tr>
               </tbody>
             </table>
-          </div>
-        </div>
-
-        <!-- Selected Session Thread Viewer -->
-        <div id="session-thread-container" class="hidden rounded-3xl bg-gray-50/80 border border-gray-200/80 p-6 space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
-            <div>
-              <h4 id="thread-session-title" class="text-sm font-bold text-gray-900">Riwayat Percakapan</h4>
-              <p id="thread-session-subtitle" class="text-xs text-gray-500 font-mono mt-0.5">Session ID: —</p>
-            </div>
-            <button id="btn-close-thread" class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 cursor-pointer shadow-2xs">
-              Tutup Percakapan
-            </button>
-          </div>
-          <div id="thread-messages-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-            <!-- Rendered chat bubbles -->
           </div>
         </div>
 
@@ -718,7 +718,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <input
               id="kpi-search-input"
               type="text"
-              placeholder="Search NIK or Nama Karyawan..."
+              placeholder="Search NIK or employee name..."
               class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
             />
             <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -746,12 +746,12 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
                 <tr>
                   <th class="py-3.5 px-4 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
                   <th class="py-3.5 px-4">NIK</th>
-                  <th class="py-3.5 px-4">Nama Karyawan</th>
+                  <th class="py-3.5 px-4">Employee Name</th>
                   <th class="py-3.5 px-4">Role</th>
-                  <th class="py-3.5 px-4">Point / Cabang</th>
+                  <th class="py-3.5 px-4">Branch Point</th>
                   <th class="py-3.5 px-4">Area & Regional</th>
-                  <th class="py-3.5 px-4">Skor KPI</th>
-                  <th class="py-3.5 px-4 text-right">Status KPI</th>
+                  <th class="py-3.5 px-4">KPI Score</th>
+                  <th class="py-3.5 px-4 text-right">KPI Status</th>
                 </tr>
               </thead>
               <tbody id="kpi-table-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
@@ -1246,14 +1246,21 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     const logSubtabPanes = document.querySelectorAll('.log-subtab-pane');
     let activeLogSubtab = 'recent';
 
-    // Session Explorer Elements
+    // Session Explorer Modal Elements
     const explorerSearchInput = document.getElementById('explorer-search-input');
     const sessionSummaryRows = document.getElementById('session-summary-rows');
-    const sessionThreadContainer = document.getElementById('session-thread-container');
+    const threadModal = document.getElementById('thread-modal');
     const threadSessionTitle = document.getElementById('thread-session-title');
     const threadSessionSubtitle = document.getElementById('thread-session-subtitle');
     const threadMessagesList = document.getElementById('thread-messages-list');
-    const btnCloseThread = document.getElementById('btn-close-thread');
+    const btnCloseThreadModal = document.getElementById('btn-close-thread-modal');
+
+    if (btnCloseThreadModal && threadModal) {
+      btnCloseThreadModal.addEventListener('click', () => threadModal.close());
+      threadModal.addEventListener('click', (e) => {
+        if (e.target === threadModal) threadModal.close();
+      });
+    }
 
     // User LTM Elements
     const ltmSearchInput = document.getElementById('ltm-search-input');
@@ -1425,7 +1432,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     // SVG Donut Chart for Intent Distribution (Exact CAG Streamlit Style)
     function renderIntentDonut(intents, container) {
       if (!intents || intents.length === 0) {
-        container.innerHTML = `<div class="text-gray-400 py-6 text-center text-xs">Belum ada data intent.</div>`;
+        container.innerHTML = `<div class="text-gray-400 py-6 text-center text-xs">No intent data recorded.</div>`;
         return;
       }
 
@@ -1470,7 +1477,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           Z
         `;
 
-        paths += `<path d="${d}" fill="${color}" stroke="#FFFFFF" stroke-width="1.5" class="transition-opacity duration-200 hover:opacity-85 cursor-pointer"><title>${item.intent}: ${count} (${(fraction * 100).toFixed(1)}%)</title></path>`;
+        // Seamless slices without white gap
+        paths += `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.5" class="transition-opacity duration-200 hover:opacity-85 cursor-pointer"><title>${item.intent}: ${count} (${(fraction * 100).toFixed(1)}%)</title></path>`;
 
         // Only display in-slice label text for slices >= 15% to avoid cluttered/overlapping numbers
         if (fraction >= 0.15) {
@@ -1506,7 +1514,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-xs">
               ${paths}
               ${labels}
-              <circle cx="100" cy="100" r="${rIn - 2}" fill="#FFFFFF" />
+              <circle cx="100" cy="100" r="${rIn}" fill="#FFFFFF" />
               <text x="100" y="95" text-anchor="middle" class="text-xl font-extrabold fill-gray-900 tabular-nums">${total.toLocaleString('id-ID')}</text>
               <text x="100" y="112" text-anchor="middle" class="text-[9px] font-bold uppercase tracking-wider fill-gray-400">QUERIES</text>
             </svg>
@@ -1661,16 +1669,16 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
               <!-- Detailed Caller & Session Metadata Card -->
               <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-2.5 text-xs font-sans">
                 <div class="flex items-center justify-between pb-1.5 border-b border-gray-200/60">
-                  <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Identitas Penanya & Sesi</span>
+                  <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">User Identity & Session</span>
                   <span class="px-2 py-0.5 rounded-md bg-gray-200 text-gray-800 font-mono text-[10px] font-bold">User ID: ${escapeHtml(user.id)}</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700">
-                  <div><span class="text-gray-400">Nama Lengkap:</span> <strong class="text-gray-900 ml-1">${escapeHtml(user.name)}</strong></div>
-                  <div><span class="text-gray-400">Posisi:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.role)}</span></div>
-                  ${user.location ? `<div><span class="text-gray-400">Point / Cabang:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.location)}</span></div>` : ''}
+                  <div><span class="text-gray-400">Full Name:</span> <strong class="text-gray-900 ml-1">${escapeHtml(user.name)}</strong></div>
+                  <div><span class="text-gray-400">Position:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.role)}</span></div>
+                  ${user.location ? `<div><span class="text-gray-400">Branch Point:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.location)}</span></div>` : ''}
                 </div>
                 <div class="pt-1.5 border-t border-gray-200/60">
-                  <div class="text-[10px] text-gray-400 font-mono mb-1 uppercase tracking-wider">Full Session ID (Lengkap):</div>
+                  <div class="text-[10px] text-gray-400 font-mono mb-1 uppercase tracking-wider">Full Session ID:</div>
                   <div class="font-mono text-[11px] text-gray-800 bg-white p-2.5 rounded-xl border border-gray-200/80 break-all select-all shadow-2xs">
                     ${escapeHtml(user.raw)}
                   </div>
@@ -1775,7 +1783,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
 
       if (filtered.length === 0) {
-        sessionSummaryRows.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">Tidak ada sesi yang cocok.</td></tr>`;
+        sessionSummaryRows.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">No matching sessions found.</td></tr>`;
         return;
       }
 
@@ -1802,7 +1810,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           </td>
           <td class="py-3 px-4 text-right">
             <button class="btn-open-session px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 shadow-2xs cursor-pointer group-hover:border-gray-300">
-              Lihat Chat ›
+              View Chat ›
             </button>
           </td>
         </tr>
@@ -1818,10 +1826,10 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     }
 
     function openSessionThread(sessionGroup) {
-      if (!sessionGroup || !sessionThreadContainer) return;
+      if (!sessionGroup || !threadModal) return;
 
       threadSessionTitle.innerText = `${sessionGroup.user.name} (${sessionGroup.user.role})`;
-      threadSessionSubtitle.innerText = `Session ID: ${sessionGroup.sessionId} • ${sessionGroup.turnsCount} percakapan • Terakhir: ${formatTimeNumeric(sessionGroup.latestActivity)}`;
+      threadSessionSubtitle.innerText = `Session ID: ${sessionGroup.sessionId} • ${sessionGroup.turnsCount} turns • Latest: ${formatTimeNumeric(sessionGroup.latestActivity)}`;
 
       threadMessagesList.innerHTML = sessionGroup.turns.map((turn, idx) => `
         <div class="space-y-3 pb-4 border-b border-gray-200/50 last:border-0">
@@ -1857,14 +1865,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         </div>
       `).join('');
 
-      sessionThreadContainer.classList.remove('hidden');
-      sessionThreadContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    if (btnCloseThread) {
-      btnCloseThread.addEventListener('click', () => {
-        sessionThreadContainer.classList.add('hidden');
-      });
+      threadModal.showModal();
     }
 
     if (explorerSearchInput) {
@@ -1884,7 +1885,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
       });
 
       if (filtered.length === 0) {
-        ltmRows.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-gray-400">Tidak ada data profil LTM yang cocok.</td></tr>`;
+        ltmRows.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-gray-400">No matching user LTM records.</td></tr>`;
         return;
       }
 
