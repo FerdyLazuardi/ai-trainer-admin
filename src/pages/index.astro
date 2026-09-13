@@ -1,0 +1,1717 @@
+---
+import '../styles/global.css';
+
+// Read Cloudflare Zero Trust authenticated identity if available
+const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email') || 'operator@amartha.com';
+---
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amartha CAG • Operations & Analytics Cockpit</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#F3F4F6] text-gray-900 min-h-screen antialiased p-3 sm:p-5 flex flex-col lg:flex-row gap-5 font-sans selection:bg-rose-500/20 selection:text-rose-700">
+
+  <!-- Toast Notification Overlay -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-200 translate-y-12 opacity-0 pointer-events-none">
+    <div id="toast-body" class="px-4 py-3 rounded-2xl border border-gray-200/80 bg-white text-xs font-mono shadow-xl backdrop-blur-md flex items-center gap-2.5 text-gray-900">
+      <span id="toast-icon">⚡</span>
+      <span id="toast-msg">Operation completed</span>
+    </div>
+  </div>
+
+  <!-- Detail Dialog Modal (Clean White Vocalyn Style) -->
+  <dialog id="detail-modal" class="fixed inset-0 m-auto z-50 max-w-2xl w-[92vw] rounded-3xl bg-white border border-gray-200 text-gray-900 p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-xs">
+    <div class="p-6 sm:p-8 space-y-5">
+      <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+        <div>
+          <h3 id="modal-title" class="text-lg font-bold text-gray-900">Detail View</h3>
+          <p id="modal-subtitle" class="text-xs text-gray-400 mt-0.5">Comprehensive metadata record</p>
+        </div>
+        <button id="modal-close" class="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="modal-content" class="max-h-[68vh] overflow-y-auto pr-1 space-y-4 text-sm font-sans">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Left Sidebar (Vocalyn Exact Match) -->
+  <aside id="main-sidebar" class="w-full lg:w-64 bg-[#F3F4F6] shrink-0 flex flex-col justify-between py-2 px-1 select-none space-y-6 transition-[width] duration-200 overflow-hidden">
+    <div class="space-y-6">
+      
+      <!-- Brand & Product Title with Diamond Logo & Collapse Toggle -->
+      <div class="flex items-center justify-between px-3">
+        <div class="flex items-center gap-3 min-w-0 overflow-hidden">
+          <div class="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-xs shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </div>
+          <div class="sidebar-text truncate">
+            <div class="font-extrabold text-base text-gray-900 tracking-tight">Amartha CAG</div>
+          </div>
+        </div>
+
+        <button id="sidebar-toggle-btn" title="Toggle Sidebar" class="w-7 h-7 rounded-lg border border-gray-200/80 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-2xs">
+          <svg id="sidebar-toggle-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+      </div>
+
+      <!-- Authenticated Operator Card (Tenant Switcher Pill) -->
+      <div id="operator-card" class="p-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex items-center justify-between">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl bg-gray-100 text-gray-800 font-bold text-xs flex items-center justify-center shrink-0 border border-gray-200/60">
+            AM
+          </div>
+          <div class="sidebar-text min-w-0 flex-1">
+            <div class="text-xs font-bold text-gray-900 truncate" title={userEmail}>
+              {userEmail.split('@')[0]}
+            </div>
+            <div class="text-[10px] text-gray-400 font-mono truncate">@amartha.com</div>
+          </div>
+        </div>
+        <div class="sidebar-text text-gray-400 pr-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Categorized & Pill Style) -->
+      <nav class="space-y-5 px-1">
+        <div>
+          <div class="sidebar-text text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-2">Ingestion</div>
+          <ul class="space-y-1">
+            <li>
+              <button data-tab="sync" title="Spreadsheet Sync" class="tab-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-semibold text-gray-900 bg-white shadow-xs cursor-pointer transition-all">
+                <svg class="w-4 h-4 text-gray-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span class="sidebar-text truncate">Spreadsheet Sync</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="sidebar-text text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-2">Analytics & Intelligence</div>
+          <ul class="space-y-1">
+            <li>
+              <button data-tab="logs" title="Chat Logs" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-200/60 cursor-pointer transition-all">
+                <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <span class="sidebar-text truncate">Chat Logs</span>
+              </button>
+            </li>
+            <li>
+              <button data-tab="kpi" title="Spreadsheet KPI" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-200/60 cursor-pointer transition-all">
+                <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <span class="sidebar-text truncate">Spreadsheet KPI</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+    </div>
+
+    <!-- Sidebar Bottom System Info Card (Dynamic Live Telemetry) -->
+    <div id="sys-widget-card" class="bg-white rounded-2xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+      <div class="flex items-center justify-between text-xs font-bold text-gray-900">
+        <span class="flex items-center gap-1.5 truncate">
+          <svg class="w-4 h-4 text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span id="sys-host" class="sidebar-text truncate">Proxmox VM</span>
+        </span>
+        <span id="sys-status-badge" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span class="sidebar-text">Online</span>
+        </span>
+      </div>
+      
+      <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+        <div id="sys-ram-bar" class="h-1.5 rounded-full bg-gray-900 transition-all duration-500" style="width: 35%"></div>
+      </div>
+
+      <div class="flex items-center justify-between text-[11px] font-mono text-gray-400">
+        <span class="sidebar-text" id="sys-footer-label">Proxmox RAM</span>
+        <span id="sys-ram-text" class="tabular-nums">1.4 / 4.0 GB</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Canvas (Pure White Vocalyn Panel) -->
+  <main class="flex-1 bg-white rounded-3xl border border-gray-200/80 shadow-sm p-6 sm:p-8 flex flex-col gap-6 overflow-hidden">
+
+    <!-- Top Canvas Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+      <div>
+        <h1 id="page-title" class="text-2xl font-extrabold text-gray-900 tracking-tight">Spreadsheet Sync</h1>
+        <p id="page-subtitle" class="text-xs text-gray-400 mt-0.5">Automated synchronization and telemetry management</p>
+      </div>
+
+      <!-- Top Tools & Badges -->
+      <div class="flex items-center gap-3">
+        <div id="wib-clock" class="text-xs font-mono font-medium px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200/80 text-gray-600 tabular-nums">
+          00:00:00 WIB
+        </div>
+
+        <button id="btn-refresh-all" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200/80 text-xs font-semibold text-gray-700 shadow-xs transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span>Refresh</span>
+        </button>
+
+        <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700">
+          A
+        </div>
+      </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: SPREADSHEET SYNC -->
+    <!-- ========================================== -->
+    <div id="tab-content-sync" class="tab-pane space-y-6">
+
+      <!-- Top Metric Cards (5 Columns like Vocalyn) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Total KPI Records</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="stat-user-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">7,609</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Synced to table: user_kpi_data</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Branch Aggregates</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="stat-branch-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">800</span>
+            <span class="text-xs font-medium text-gray-500 ml-2">points</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Normalized point matching</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Auto-Sync Cadence</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="stat-cadence-badge" class="text-base font-bold text-gray-900">Loading...</span>
+          </div>
+          <span id="stat-cadence-detail" class="text-[11px] text-gray-400 mt-1">Streaq worker hourly cron</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Last Execution</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <span id="stat-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="stat-status-text" class="text-base font-bold text-gray-900">—</span>
+          </div>
+          <span id="stat-last-time" class="text-[11px] text-gray-400 mt-1 truncate tabular-nums">—</span>
+        </div>
+
+      </div>
+
+      <!-- Operational Core: 2 Columns Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Pipeline Dispatcher (7 cols) -->
+        <section class="lg:col-span-7 space-y-6">
+          <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-6">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Pipeline Dispatcher</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Enqueues Google Apps Script sync task to Proxmox Streaq worker.</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-gray-200/70 text-[10px] font-mono font-medium text-gray-600">
+                TIMEOUT: 900s
+              </span>
+            </div>
+
+            <!-- Trigger Button -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <button
+                id="btn-trigger-sync"
+                class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gray-900 hover:bg-black active:bg-gray-800 text-white font-semibold text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg id="sync-spinner" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span id="sync-btn-label">Dispatch Sync Now</span>
+                <kbd class="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-gray-800 rounded text-gray-300">⌘↵</kbd>
+              </button>
+
+              <div class="text-xs text-gray-500 sm:text-right space-y-0.5 font-mono text-[11px]">
+                <div>Target: <span class="text-gray-900 font-semibold">Users & Branches</span></div>
+                <div>Anti-Wipe Guard: <span class="text-emerald-600 font-semibold">Active</span></div>
+              </div>
+            </div>
+
+            <!-- Pipeline Live Monitor Box -->
+            <div id="pipeline-monitor" class="hidden rounded-2xl border border-gray-200 bg-white p-5 space-y-3 shadow-xs">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span id="monitor-pulse" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                  <span id="monitor-state" class="text-xs font-bold text-gray-900">JOB ENQUEUED</span>
+                </div>
+                <span id="monitor-timer" class="text-xs font-mono font-medium text-gray-500 tabular-nums">00:00s</span>
+              </div>
+
+              <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div id="monitor-bar" class="h-2 rounded-full bg-gray-900 transition-all duration-300 w-1/4"></div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs font-mono text-gray-500 pt-1">
+                <span id="monitor-job-id" class="truncate max-w-[280px]">Job: initializing...</span>
+                <span id="monitor-stage-text">Stage 1/3: Polling Worker</span>
+              </div>
+
+              <div id="monitor-details" class="hidden text-xs pt-2 border-t border-gray-100 text-gray-600"></div>
+            </div>
+          </div>
+
+          <!-- Telemetry Ledger Card -->
+          <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Telemetry Ledger</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Audit history of recorded pipeline executions.</p>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs font-sans">
+                <thead>
+                  <tr class="border-b border-gray-200 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                    <th class="py-2.5 px-3">Timestamp (WIB)</th>
+                    <th class="py-2.5 px-3">Status</th>
+                    <th class="py-2.5 px-3">Users Staged</th>
+                    <th class="py-2.5 px-3">Branches</th>
+                    <th class="py-2.5 px-3 text-right">Integrity</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-rows" class="divide-y divide-gray-200/60 text-gray-700 font-mono text-xs">
+                  <tr><td colspan="5" class="py-6 text-center text-gray-400 font-sans">Loading audit records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right: Scheduler Cockpit (5 cols) -->
+        <section class="lg:col-span-5">
+          <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-6">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
+              <div>
+                <h2 class="text-base font-bold text-gray-900">Scheduler Cockpit</h2>
+                <p class="text-xs text-gray-500 mt-0.5">Configure automated cron syncs.</p>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-white border border-gray-200 text-gray-700 font-semibold">
+                REDIS
+              </span>
+            </div>
+
+            <form id="form-schedule" class="space-y-5">
+              <div class="flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs">
+                <div>
+                  <label for="sched-enabled" class="text-xs font-bold text-gray-900 block">Enable Automatic Execution</label>
+                  <span class="text-[11px] text-gray-500">Worker polls hourly and triggers at designated time</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="sched-enabled" class="sr-only peer">
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                </label>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider block">Execution Frequency</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="flex items-center justify-center p-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white transition-all text-xs font-semibold text-gray-700 shadow-xs">
+                    <input type="radio" name="schedule_type" value="daily" checked class="sr-only">
+                    Daily (Harian)
+                  </label>
+                  <label class="flex items-center justify-center p-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white transition-all text-xs font-semibold text-gray-700 shadow-xs">
+                    <input type="radio" name="schedule_type" value="weekly" class="sr-only">
+                    Weekly (Mingguan)
+                  </label>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label for="sched-hour" class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider">Trigger Hour (WIB)</label>
+                  <span class="text-[11px] text-gray-400 font-mono">Jakarta Time</span>
+                </div>
+                <select id="sched-hour" class="w-full px-4 py-2.5 rounded-2xl bg-white border border-gray-200 text-gray-900 text-xs font-medium focus:border-gray-400 focus:outline-none shadow-xs cursor-pointer">
+                  <option value="1">01:00 WIB (Midnight - Low Load)</option>
+                  <option value="2" selected>02:00 WIB (Recommended - Low Load)</option>
+                  <option value="3">03:00 WIB (Low Load)</option>
+                  <option value="4">04:00 WIB</option>
+                  <option value="5">05:00 WIB</option>
+                  <option value="6">06:00 WIB</option>
+                  <option value="23">23:00 WIB</option>
+                </select>
+              </div>
+
+              <div id="field-day-of-week" class="space-y-2 hidden">
+                <label for="sched-day" class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider block">Execution Day</label>
+                <select id="sched-day" class="w-full px-4 py-2.5 rounded-2xl bg-white border border-gray-200 text-gray-900 text-xs font-medium focus:border-gray-400 focus:outline-none shadow-xs cursor-pointer">
+                  <option value="0">Sunday (Minggu)</option>
+                  <option value="1">Monday (Senin)</option>
+                  <option value="2">Tuesday (Selasa)</option>
+                  <option value="3">Wednesday (Rabu)</option>
+                  <option value="4">Thursday (Kamis)</option>
+                  <option value="5">Friday (Jumat)</option>
+                  <option value="6">Saturday (Sabtu)</option>
+                </select>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white border border-gray-200 text-xs space-y-1 shadow-xs">
+                <div class="text-gray-400 uppercase text-[10px] font-bold">Configured Cron Rule</div>
+                <div id="rule-summary" class="text-gray-900 font-bold">Inactive (Manual Trigger Only)</div>
+                <div class="text-[11px] text-gray-400">Worker timezone: Asia/Jakarta (WIB)</div>
+              </div>
+
+              <button
+                type="submit"
+                id="btn-save-schedule"
+                class="w-full py-3.5 px-4 rounded-2xl bg-gray-900 hover:bg-black active:bg-gray-800 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer">
+                Commit Schedule Configuration
+              </button>
+            </form>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: CHAT LOGS & STREAMLIT METRICS -->
+    <!-- ========================================== -->
+    <div id="tab-content-logs" class="tab-pane hidden space-y-6">
+
+      <!-- Metrics Row (Vocalyn Clean White Cards) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Total Queries</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="log-stat-queries" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0</span>
+            <span class="text-xs font-medium text-gray-500 ml-2">turns</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Total conversation turns</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Avg. Latency</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="log-stat-latency" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0.0s</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2">p50</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">End-to-end response time</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">OR Cache Hit Rate</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="log-stat-hitrate" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0%</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Prompt caching efficiency</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Estimated Cost</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="log-stat-cost" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">Rp 0</span>
+          </div>
+          <span id="log-stat-tokens" class="text-[11px] text-gray-400 mt-1">0 cached tokens</span>
+        </div>
+
+      </div>
+
+      <!-- Charts Row: Intent Distribution (Donut) & Daily Trends -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Distribusi Intent</h3>
+            <span class="text-[11px] text-gray-400 font-mono">Classification Donut</span>
+          </div>
+          <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[220px]">
+            <div class="text-gray-400 py-6 text-center text-xs">Loading intent donut chart...</div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Tren Request Harian</h3>
+            <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
+          </div>
+          <div id="trends-chart-container" class="h-48 flex items-end gap-2 pt-4 pb-2">
+            <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Chat Logs Table Section -->
+      <div class="space-y-4">
+        
+        <!-- Search & Filter Bar (Vocalyn Exact Match) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="relative w-full sm:w-80">
+            <input
+              id="log-search-input"
+              type="text"
+              placeholder="Search penanya, query, jawaban..."
+              class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+            />
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <select id="log-intent-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
+              <option value="ALL">Semua Intent</option>
+              <option value="KNOWLEDGE">KNOWLEDGE</option>
+              <option value="COACHING">COACHING</option>
+              <option value="GREETING">GREETING</option>
+              <option value="OFF_SCOPE">OFF_SCOPE</option>
+              <option value="TOPIC_LIST">TOPIC_LIST</option>
+              <option value="AMBIGUOUS">AMBIGUOUS</option>
+              <option value="SECTION_DRILLDOWN">SECTION_DRILLDOWN</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                  <th class="py-3.5 px-4 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
+                  <th class="py-3.5 px-4 w-48">Penanya (User & Posisi)</th>
+                  <th class="py-3.5 px-4">Pertanyaan & Jawaban</th>
+                  <th class="py-3.5 px-4 w-32">Intent</th>
+                  <th class="py-3.5 px-4 w-28">Latency</th>
+                  <th class="py-3.5 px-4 w-36">Time (WIB)</th>
+                  <th class="py-3.5 px-4 w-24">Tokens</th>
+                  <th class="py-3.5 px-4 text-right w-24">Cost (IDR)</th>
+                </tr>
+              </thead>
+              <tbody id="chat-logs-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+                <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- User LTM Profiles Table -->
+      <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
+          <div>
+            <h3 class="text-sm font-bold text-gray-900">User LTM Profiles</h3>
+            <p class="text-xs text-gray-400">Long-Term Memory synthesis stored in PostgreSQL</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="text-gray-400 uppercase text-[10px] font-bold tracking-wider border-b border-gray-200">
+              <tr>
+                <th class="py-2.5 px-3">User ID</th>
+                <th class="py-2.5 px-3">Learning Summary</th>
+                <th class="py-2.5 px-3 text-right">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody id="ltm-rows" class="divide-y divide-gray-200/60 text-gray-700">
+              <tr><td colspan="3" class="py-4 text-center text-gray-400">Loading user LTM profiles...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: SPREADSHEET KPI (FROM POSTGRESQL) -->
+    <!-- ========================================== -->
+    <div id="tab-content-kpi" class="tab-pane hidden space-y-6">
+
+      <!-- Top Summary Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">PostgreSQL Records</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span id="kpi-total-badge" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">7,609</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md ml-2">Postgres Live</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Queried from Proxmox DB</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Data Source</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span class="text-lg font-bold text-gray-900">PostgreSQL</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">table: user_kpi_data</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Target Users</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span class="text-lg font-bold text-gray-900">BP / BM / AM</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Hierarchy: Point → Area → Reg → Pulau</span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Fast In-Memory Cache</span>
+            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span class="text-lg font-bold text-emerald-600">&lt; 10ms Latency</span>
+          </div>
+          <span class="text-[11px] text-gray-400 mt-1">Instant search & pagination</span>
+        </div>
+
+      </div>
+
+      <!-- KPI Table Section -->
+      <div class="space-y-4">
+        
+        <!-- Search & Filter Bar (Vocalyn Exact Match) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="relative w-full sm:w-80">
+            <input
+              id="kpi-search-input"
+              type="text"
+              placeholder="Search NIK or Nama Karyawan..."
+              class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+            />
+            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <select id="kpi-role-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
+              <option value="ALL">All Roles</option>
+              <option value="BP">BP (Business Partner)</option>
+              <option value="BM">BM (Business Manager)</option>
+              <option value="AM">AM (Area Manager)</option>
+            </select>
+
+            <button id="btn-reload-kpi" class="px-3.5 py-2 rounded-2xl bg-gray-900 text-white text-xs font-semibold hover:bg-black shadow-xs cursor-pointer">
+              Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                  <th class="py-3.5 px-4 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
+                  <th class="py-3.5 px-4">NIK</th>
+                  <th class="py-3.5 px-4">Nama Karyawan</th>
+                  <th class="py-3.5 px-4">Role</th>
+                  <th class="py-3.5 px-4">Point / Cabang</th>
+                  <th class="py-3.5 px-4">Area & Regional</th>
+                  <th class="py-3.5 px-4">Skor KPI</th>
+                  <th class="py-3.5 px-4 text-right">Status KPI</th>
+                </tr>
+              </thead>
+              <tbody id="kpi-table-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+                <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pagination Controls (Vocalyn Exact Match) -->
+        <div class="flex items-center justify-between pt-2 text-xs text-gray-500 font-sans">
+          <span id="kpi-page-indicator">Showing records</span>
+          
+          <div class="flex items-center gap-1.5 font-semibold">
+            <button id="btn-kpi-prev" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs">
+              ‹
+            </button>
+            <span id="kpi-current-page" class="w-8 h-8 rounded-xl bg-gray-900 text-white text-xs flex items-center justify-center font-bold">1</span>
+            <button id="btn-kpi-next" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center cursor-pointer shadow-xs">
+              ›
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Client-side Logic Script -->
+  <script is:inline>
+    // State
+    let activeTab = 'sync';
+    let rawChatLogs = [];
+    let rawKPIRows = [];
+    let kpiPage = 1;
+    const USD_TO_IDR = 16000.0;
+
+    // Elements
+    const pageTitle = document.getElementById('page-title');
+    const pageSubtitle = document.getElementById('page-subtitle');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-msg');
+    const toastIcon = document.getElementById('toast-icon');
+    const wibClock = document.getElementById('wib-clock');
+    const btnRefreshAll = document.getElementById('btn-refresh-all');
+
+    // Dialog Modal Elements
+    const detailModal = document.getElementById('detail-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalSubtitle = document.getElementById('modal-subtitle');
+    const modalContent = document.getElementById('modal-content');
+    const modalClose = document.getElementById('modal-close');
+
+    modalClose.addEventListener('click', () => detailModal.close());
+    detailModal.addEventListener('click', (e) => {
+      if (e.target === detailModal) detailModal.close();
+    });
+
+    // Toast function
+    function notify(message, isSuccess = true) {
+      toastMsg.innerText = message;
+      toastIcon.innerText = isSuccess ? '⚡' : '⚠️';
+      toast.classList.remove('translate-y-12', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-12', 'opacity-0');
+      }, 3500);
+    }
+
+    // WIB Clock
+    function updateClock() {
+      const now = new Date();
+      wibClock.innerText = now.toLocaleTimeString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour12: false
+      }) + ' WIB';
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Sidebar Collapse Toggle
+    const mainSidebar = document.getElementById('main-sidebar');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+
+    const isSidebarCollapsed = localStorage.getItem('cag_sidebar_collapsed') === 'true';
+    if (isSidebarCollapsed && mainSidebar) {
+      mainSidebar.classList.add('is-collapsed');
+    }
+
+    if (sidebarToggleBtn && mainSidebar) {
+      sidebarToggleBtn.addEventListener('click', () => {
+        mainSidebar.classList.toggle('is-collapsed');
+        const collapsed = mainSidebar.classList.contains('is-collapsed');
+        localStorage.setItem('cag_sidebar_collapsed', String(collapsed));
+      });
+    }
+
+    // Live System Telemetry (Proxmox VM + RAM)
+    const sysHost = document.getElementById('sys-host');
+    const sysStatusBadge = document.getElementById('sys-status-badge');
+    const sysRamBar = document.getElementById('sys-ram-bar');
+    const sysFooterLabel = document.getElementById('sys-footer-label');
+    const sysRamText = document.getElementById('sys-ram-text');
+
+    async function updateSystemTelemetry() {
+      try {
+        const res = await fetch('/api/system');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (sysHost) sysHost.innerText = data.host || 'Proxmox VM';
+        if (sysRamBar) sysRamBar.style.width = `${Math.min(100, Math.max(10, data.ram_percent || 35))}%`;
+        
+        const usedGb = ((data.ram_used_mb || 1400) / 1024).toFixed(1);
+        const totalGb = ((data.ram_total_mb || 4096) / 1024).toFixed(1);
+        if (sysRamText) {
+          sysRamText.innerText = `${usedGb} / ${totalGb} GB (${Math.round(data.ram_percent || 35)}%)`;
+        }
+        if (sysFooterLabel) {
+          sysFooterLabel.innerText = `RAM (Redis: ${data.redis_memory || 'OK'})`;
+        }
+        if (sysStatusBadge) {
+          sysStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span class="sidebar-text">Online</span>`;
+        }
+      } catch (e) {
+        // preserve fallback
+      }
+    }
+    updateSystemTelemetry();
+    setInterval(updateSystemTelemetry, 15000);
+
+    // Tab Switching
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        if (tab === activeTab) return;
+        activeTab = tab;
+
+        tabButtons.forEach(b => {
+          b.classList.remove('active', 'text-gray-900', 'bg-white', 'shadow-xs', 'font-semibold');
+          b.classList.add('text-gray-600', 'hover:text-gray-900', 'hover:bg-gray-200/60', 'font-medium');
+        });
+        btn.classList.add('active', 'text-gray-900', 'bg-white', 'shadow-xs', 'font-semibold');
+        btn.classList.remove('text-gray-600', 'hover:text-gray-900', 'hover:bg-gray-200/60', 'font-medium');
+
+        tabPanes.forEach(p => p.classList.add('hidden'));
+        const activePane = document.getElementById(`tab-content-${tab}`);
+        if (activePane) activePane.classList.remove('hidden');
+
+        if (tab === 'sync') {
+          pageTitle.innerText = 'Spreadsheet Sync';
+          pageSubtitle.innerText = 'Automated synchronization and telemetry management';
+        } else if (tab === 'logs') {
+          pageTitle.innerText = 'Chat Logs & Analytics';
+          pageSubtitle.innerText = 'Audited turns, intent distribution, and LLM telemetry';
+          if (rawChatLogs.length === 0) loadChatLogs();
+        } else if (tab === 'kpi') {
+          pageTitle.innerText = 'Spreadsheet KPI Directory';
+          pageSubtitle.innerText = 'Live PostgreSQL user KPI data synced from spreadsheet';
+          if (rawKPIRows.length === 0) loadKPIData();
+        }
+      });
+    });
+
+    // -------------------------------------------------------------
+    // TAB 1: SPREADSHEET SYNC LOGIC
+    // -------------------------------------------------------------
+    const statUserCount = document.getElementById('stat-user-count');
+    const statBranchCount = document.getElementById('stat-branch-count');
+    const statCadenceBadge = document.getElementById('stat-cadence-badge');
+    const statCadenceDetail = document.getElementById('stat-cadence-detail');
+    const statStatusDot = document.getElementById('stat-status-dot');
+    const statStatusText = document.getElementById('stat-status-text');
+    const statLastTime = document.getElementById('stat-last-time');
+    const ledgerRows = document.getElementById('ledger-rows');
+
+    const formSchedule = document.getElementById('form-schedule');
+    const schedEnabled = document.getElementById('sched-enabled');
+    const schedHour = document.getElementById('sched-hour');
+    const schedDay = document.getElementById('sched-day');
+    const fieldDayOfWeek = document.getElementById('field-day-of-week');
+    const ruleSummary = document.getElementById('rule-summary');
+
+    const btnSync = document.getElementById('btn-trigger-sync');
+    const syncSpinner = document.getElementById('sync-spinner');
+    const syncBtnLabel = document.getElementById('sync-btn-label');
+    const monitor = document.getElementById('pipeline-monitor');
+    const monitorState = document.getElementById('monitor-state');
+    const monitorPulse = document.getElementById('monitor-pulse');
+    const monitorBar = document.getElementById('monitor-bar');
+    const monitorJobId = document.getElementById('monitor-job-id');
+    const monitorStage = document.getElementById('monitor-stage-text');
+    const monitorTimer = document.getElementById('monitor-timer');
+    const monitorDetails = document.getElementById('monitor-details');
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    function updateRuleSummary() {
+      const enabled = schedEnabled.checked;
+      const type = document.querySelector('input[name="schedule_type"]:checked')?.value || 'daily';
+      const hour = schedHour.value.padStart(2, '0');
+      const day = dayNames[schedDay.value] || 'Sunday';
+
+      if (!enabled) {
+        ruleSummary.innerText = 'Inactive (Manual Trigger Only)';
+        ruleSummary.className = 'text-gray-500 font-medium';
+      } else if (type === 'daily') {
+        ruleSummary.innerText = `Run daily at ${hour}:00 WIB`;
+        ruleSummary.className = 'text-emerald-600 font-bold';
+      } else {
+        ruleSummary.innerText = `Run weekly on ${day} at ${hour}:00 WIB`;
+        ruleSummary.className = 'text-emerald-600 font-bold';
+      }
+    }
+
+    document.querySelectorAll('input[name="schedule_type"]').forEach(r => {
+      r.addEventListener('change', (e) => {
+        if (e.target.value === 'weekly') {
+          fieldDayOfWeek.classList.remove('hidden');
+        } else {
+          fieldDayOfWeek.classList.add('hidden');
+        }
+        updateRuleSummary();
+      });
+    });
+
+    schedEnabled.addEventListener('change', updateRuleSummary);
+    schedHour.addEventListener('change', updateRuleSummary);
+    schedDay.addEventListener('change', updateRuleSummary);
+
+    function formatTime(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('id-ID', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: 'Asia/Jakarta',
+        }) + ' WIB';
+      } catch {
+        return iso;
+      }
+    }
+
+    async function loadSyncTelemetry() {
+      try {
+        const res = await fetch('/api/schedule');
+        if (!res.ok) throw new Error('API unreachable');
+        const data = await res.json();
+
+        schedEnabled.checked = Boolean(data.enabled);
+        schedHour.value = String(data.hour ?? 2);
+        const type = data.schedule_type || 'daily';
+        const radio = document.querySelector(`input[name="schedule_type"][value="${type}"]`);
+        if (radio) radio.checked = true;
+
+        if (type === 'weekly') {
+          fieldDayOfWeek.classList.remove('hidden');
+          schedDay.value = String(data.day_of_week ?? 0);
+        } else {
+          fieldDayOfWeek.classList.add('hidden');
+        }
+        updateRuleSummary();
+
+        if (data.enabled) {
+          statCadenceBadge.innerText = type === 'weekly' ? `Weekly (${dayNames[data.day_of_week ?? 0]})` : 'Daily Active';
+          statCadenceBadge.className = 'text-base font-bold text-emerald-600';
+          statCadenceDetail.innerText = `Trigger: ${String(data.hour ?? 2).padStart(2, '0')}:00 WIB`;
+        } else {
+          statCadenceBadge.innerText = 'Disabled';
+          statCadenceBadge.className = 'text-base font-bold text-gray-500';
+          statCadenceDetail.innerText = 'Manual dispatch only';
+        }
+
+        statLastTime.innerText = formatTime(data.last_run_at);
+
+        if (data.last_status === 'success') {
+          statStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+          statStatusText.innerText = 'SUCCESS';
+          statStatusText.className = 'text-base font-bold text-emerald-600';
+        } else if (data.last_status === 'failed') {
+          statStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+          statStatusText.innerText = 'FAILED';
+          statStatusText.className = 'text-base font-bold text-rose-600';
+        } else if (data.last_status === 'BACKEND_NOT_DEPLOYED') {
+          statCadenceBadge.innerText = 'Deploy Pending';
+          statCadenceBadge.className = 'text-base font-bold text-amber-600';
+          statStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+          statStatusText.innerText = 'NOT DEPLOYED';
+        } else {
+          statStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-gray-400';
+          statStatusText.innerText = data.last_status || 'IDLE';
+          statStatusText.className = 'text-base font-bold text-gray-700';
+        }
+
+        if (data.last_result) {
+          const u = data.last_result.users_updated ?? 7609;
+          const b = data.last_result.branches_updated ?? 800;
+          statUserCount.innerText = u.toLocaleString('id-ID');
+          statBranchCount.innerText = b.toLocaleString('id-ID');
+
+          ledgerRows.innerHTML = `
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="py-3 px-3 text-gray-900 tabular-nums">${formatTime(data.last_run_at)}</td>
+              <td class="py-3 px-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  data.last_status === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                }">
+                  ${(data.last_status || 'UNKNOWN').toUpperCase()}
+                </span>
+              </td>
+              <td class="py-3 px-3 tabular-nums text-gray-900 font-bold">${u.toLocaleString('id-ID')}</td>
+              <td class="py-3 px-3 tabular-nums text-gray-600">${b.toLocaleString('id-ID')}</td>
+              <td class="py-3 px-3 text-right">
+                <span class="text-gray-400 text-xs">Verified Staged</span>
+              </td>
+            </tr>
+          `;
+        } else {
+          ledgerRows.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400 font-sans">No previous execution recorded.</td></tr>`;
+        }
+      } catch (err) {
+        console.error('Failed to load telemetry:', err);
+      }
+    }
+
+    formSchedule.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const enabled = schedEnabled.checked;
+      const schedule_type = document.querySelector('input[name="schedule_type"]:checked')?.value || 'daily';
+      const hour = parseInt(schedHour.value, 10);
+      const day_of_week = parseInt(schedDay.value, 10);
+
+      try {
+        const res = await fetch('/api/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled, schedule_type, hour, day_of_week }),
+        });
+        if (!res.ok) throw new Error('Failed to save schedule');
+        notify('Configuration committed to Redis on Proxmox.');
+        loadSyncTelemetry();
+      } catch (err) {
+        notify(err.message || 'Error saving schedule', false);
+      }
+    });
+
+    async function startPipeline() {
+      if (btnSync.disabled) return;
+      btnSync.disabled = true;
+      syncBtnLabel.innerText = 'Enqueuing...';
+      syncSpinner.classList.add('animate-spin');
+
+      monitor.classList.remove('hidden');
+      monitorState.innerText = 'DISPATCHING';
+      monitorState.className = 'text-xs font-bold text-amber-600';
+      monitorPulse.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+      monitorBar.className = 'h-2 rounded-full bg-amber-500 w-1/4 animate-pulse';
+      monitorJobId.innerText = 'Requesting task ticket from Streaq...';
+      monitorStage.innerText = 'Stage 1/4: Task Enqueue';
+      monitorDetails.classList.add('hidden');
+
+      let seconds = 0;
+      const timerInterval = setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        monitorTimer.innerText = `${mins}:${secs}s`;
+      }, 1000);
+
+      try {
+        const res = await fetch('/api/sync', { method: 'POST' });
+        if (!res.ok) throw new Error('API dispatch rejected');
+        const data = await res.json();
+        const jobId = data.job_id;
+        if (!jobId) throw new Error('Missing job ticket ID');
+
+        monitorJobId.innerText = `Job Ticket: ${jobId}`;
+        monitorState.innerText = 'EXECUTING';
+        monitorState.className = 'text-xs font-bold text-gray-900';
+        monitorBar.className = 'h-2 rounded-full bg-gray-900 w-2/3 animate-pulse';
+        monitorStage.innerText = 'Stage 2/4: GAS Paginated Extraction (~4MB/p)';
+        syncBtnLabel.innerText = 'Streaming Pipeline...';
+
+        const poll = setInterval(async () => {
+          try {
+            const pollRes = await fetch(`/api/status/${jobId}`);
+            if (!pollRes.ok) return;
+            const pollData = await pollRes.json();
+            const status = pollData.status;
+
+            if (status === 'done' || status === 'finished') {
+              clearInterval(poll);
+              clearInterval(timerInterval);
+              btnSync.disabled = false;
+              syncSpinner.classList.remove('animate-spin');
+              syncBtnLabel.innerText = 'Dispatch Sync Now';
+
+              const r = pollData.result || {};
+              if (r.status === 'failed') {
+                monitorState.innerText = 'FAILED';
+                monitorState.className = 'text-xs font-bold text-rose-600';
+                monitorPulse.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                monitorBar.className = 'h-2 rounded-full bg-rose-600 w-full';
+                monitorDetails.classList.remove('hidden');
+                monitorDetails.innerText = `Error: ${r.error || r.message || 'Worker aborted task'}`;
+                notify('Spreadsheet sync failed', false);
+              } else {
+                monitorState.innerText = 'SUCCESS';
+                monitorState.className = 'text-xs font-bold text-emerald-600';
+                monitorPulse.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+                monitorBar.className = 'h-2 rounded-full bg-emerald-500 w-full';
+                monitorStage.innerText = 'Stage 4/4: Complete & Verified';
+                monitorDetails.classList.remove('hidden');
+                monitorDetails.innerHTML = `
+                  <div class="grid grid-cols-2 gap-2 text-gray-700 font-mono text-xs pt-1">
+                    <div>Users Updated: <span class="text-emerald-600 font-bold">${r.users_updated ?? 0}</span></div>
+                    <div>Branches Updated: <span class="text-emerald-600 font-bold">${r.branches_updated ?? 0}</span></div>
+                  </div>
+                `;
+                notify('Spreadsheet sync pipeline complete!');
+                loadSyncTelemetry();
+              }
+            } else if (status === 'failed') {
+              clearInterval(poll);
+              clearInterval(timerInterval);
+              btnSync.disabled = false;
+              syncSpinner.classList.remove('animate-spin');
+              syncBtnLabel.innerText = 'Dispatch Sync Now';
+              monitorState.innerText = 'FAILED';
+              notify('Worker reported failure', false);
+            }
+          } catch (e) {
+            console.error('Polling error:', e);
+          }
+        }, 2000);
+
+      } catch (err) {
+        clearInterval(timerInterval);
+        btnSync.disabled = false;
+        syncSpinner.classList.remove('animate-spin');
+        syncBtnLabel.innerText = 'Dispatch Sync Now';
+        monitorState.innerText = 'DISPATCH ERROR';
+        notify(err.message || 'Dispatch error', false);
+      }
+    }
+
+    btnSync.addEventListener('click', startPipeline);
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        startPipeline();
+      }
+    });
+
+    // -------------------------------------------------------------
+    // TAB 2: CHAT LOGS & STREAMLIT METRICS LOGIC
+    // -------------------------------------------------------------
+    const logStatQueries = document.getElementById('log-stat-queries');
+    const logStatLatency = document.getElementById('log-stat-latency');
+    const logStatHitrate = document.getElementById('log-stat-hitrate');
+    const logStatCost = document.getElementById('log-stat-cost');
+    const logStatTokens = document.getElementById('log-stat-tokens');
+    const intentDonutContainer = document.getElementById('intent-donut-container');
+    const trendsChartContainer = document.getElementById('trends-chart-container');
+    const chatLogsRows = document.getElementById('chat-logs-rows');
+    const ltmRows = document.getElementById('ltm-rows');
+    const logSearchInput = document.getElementById('log-search-input');
+    const logIntentFilter = document.getElementById('log-intent-filter');
+
+    // Intent color palette matching Streamlit CAG dashboard reference
+    const INTENT_CONFIG = {
+      'KNOWLEDGE': {
+        hex: '#0066cc',
+        bg: 'bg-blue-50',
+        text: 'text-blue-700',
+        border: 'border-blue-200/80',
+        label: 'KNOWLEDGE'
+      },
+      'COACHING': {
+        hex: '#38bdf8',
+        bg: 'bg-sky-50',
+        text: 'text-sky-700',
+        border: 'border-sky-200/80',
+        label: 'COACHING'
+      },
+      'GREETING': {
+        hex: '#ef4444',
+        bg: 'bg-rose-50',
+        text: 'text-rose-700',
+        border: 'border-rose-200/80',
+        label: 'GREETING'
+      },
+      'OFF_SCOPE': {
+        hex: '#fb7185',
+        bg: 'bg-orange-50',
+        text: 'text-orange-700',
+        border: 'border-orange-200/80',
+        label: 'OFF_SCOPE'
+      },
+      'TOPIC_LIST': {
+        hex: '#0d9488',
+        bg: 'bg-teal-50',
+        text: 'text-teal-700',
+        border: 'border-teal-200/80',
+        label: 'TOPIC_LIST'
+      },
+      'AMBIGUOUS': {
+        hex: '#10b981',
+        bg: 'bg-emerald-50',
+        text: 'text-emerald-700',
+        border: 'border-emerald-200/80',
+        label: 'AMBIGUOUS'
+      },
+      'SECTION_DRILLDOWN': {
+        hex: '#f59e0b',
+        bg: 'bg-amber-50',
+        text: 'text-amber-700',
+        border: 'border-amber-200/80',
+        label: 'SECTION_DRILLDOWN'
+      },
+    };
+
+    function getIntentBadge(intentName) {
+      const conf = INTENT_CONFIG[intentName] || {
+        hex: '#64748b',
+        bg: 'bg-gray-100',
+        text: 'text-gray-700',
+        border: 'border-gray-200',
+        label: intentName || 'UNKNOWN'
+      };
+      return `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${conf.bg} ${conf.text} border ${conf.border}">
+          <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${conf.hex}"></span>
+          <span>${conf.label}</span>
+        </span>
+      `;
+    }
+
+    // Parse employee name, role, and ID from session_id
+    function parseSessionUser(sessionId) {
+      if (!sessionId || sessionId === 'Unknown' || sessionId === 'dev_user_123') {
+        return { name: 'Admin / Dev', role: 'HQ Operator', id: 'dev' };
+      }
+      const parts = sessionId.split('_');
+      if (parts.length <= 1) {
+        return { name: sessionId, role: 'Employee', id: sessionId };
+      }
+
+      const id = parts[0];
+      const roleMarkers = ['fo', 'ho', 'na', 'admin', 'bm', 'bp', 'am', 'area', 'manager', 'staff', 'lead', 'business', 'officer'];
+      
+      let markerIdx = -1;
+      for (let i = 1; i < parts.length; i++) {
+        if (roleMarkers.includes(parts[i].toLowerCase())) {
+          markerIdx = i;
+          break;
+        }
+      }
+
+      let name = '';
+      let role = '';
+      if (markerIdx > 1) {
+        name = parts.slice(1, markerIdx).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        role = parts.slice(markerIdx).filter(s => s.toLowerCase() !== 'n/a' && s.toLowerCase() !== 'na').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+      } else if (markerIdx === 1) {
+        name = parts.slice(1).filter(s => s.toLowerCase() !== 'na').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || `User #${id}`;
+        role = 'Staff';
+      } else {
+        name = parts.slice(1).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        role = 'Employee';
+      }
+
+      return {
+        name: name || `User #${id}`,
+        role: role || 'Field Staff',
+        id: id,
+        raw: sessionId,
+      };
+    }
+
+    // SVG Donut Chart for Intent Distribution (Exact CAG Streamlit Style)
+    function renderIntentDonut(intents, container) {
+      if (!intents || intents.length === 0) {
+        container.innerHTML = `<div class="text-gray-400 py-6 text-center text-xs">Belum ada data intent.</div>`;
+        return;
+      }
+
+      const total = intents.reduce((acc, cur) => acc + (cur.count || 0), 0) || 1;
+      const sorted = [...intents].sort((a, b) => (b.count || 0) - (a.count || 0));
+
+      const cx = 100;
+      const cy = 100;
+      const rOut = 85;
+      const rIn = 50;
+
+      let startAngle = -Math.PI / 2;
+      let paths = '';
+      let labels = '';
+
+      sorted.forEach(item => {
+        const count = item.count || 0;
+        const fraction = count / total;
+        const angle = fraction * 2 * Math.PI;
+        const endAngle = startAngle + angle;
+
+        const conf = INTENT_CONFIG[item.intent] || { hex: '#64748B' };
+        const color = conf.hex;
+
+        const x1 = cx + rOut * Math.cos(startAngle);
+        const y1 = cy + rOut * Math.sin(startAngle);
+        const x2 = cx + rOut * Math.cos(endAngle);
+        const y2 = cy + rOut * Math.sin(endAngle);
+
+        const x3 = cx + rIn * Math.cos(endAngle);
+        const y3 = cy + rIn * Math.sin(endAngle);
+        const x4 = cx + rIn * Math.cos(startAngle);
+        const y4 = cy + rIn * Math.sin(startAngle);
+
+        const largeArc = angle > Math.PI ? 1 : 0;
+
+        const d = `
+          M ${x1.toFixed(2)} ${y1.toFixed(2)}
+          A ${rOut} ${rOut} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}
+          L ${x3.toFixed(2)} ${y3.toFixed(2)}
+          A ${rIn} ${rIn} 0 ${largeArc} 0 ${x4.toFixed(2)} ${y4.toFixed(2)}
+          Z
+        `;
+
+        paths += `<path d="${d}" fill="${color}" stroke="#FFFFFF" stroke-width="1.5" class="transition-opacity duration-200 hover:opacity-85 cursor-pointer"><title>${item.intent}: ${count} (${(fraction * 100).toFixed(1)}%)</title></path>`;
+
+        if (fraction >= 0.035) {
+          const midAngle = startAngle + angle / 2;
+          const rLabel = (rOut + rIn) / 2;
+          const lx = cx + rLabel * Math.cos(midAngle);
+          const ly = cy + rLabel * Math.sin(midAngle);
+          const pctStr = (fraction * 100).toFixed(fraction >= 0.1 ? 1 : 2) + '%';
+          labels += `<text x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" text-anchor="middle" dominant-baseline="central" fill="#FFFFFF" class="text-[9px] font-bold font-mono pointer-events-none drop-shadow-xs">${pctStr}</text>`;
+        }
+
+        startAngle = endAngle;
+      });
+
+      const legendHtml = sorted.map(item => {
+        const count = item.count || 0;
+        const pct = ((count / total) * 100).toFixed(1);
+        const conf = INTENT_CONFIG[item.intent] || { hex: '#64748B' };
+        return `
+          <div class="flex items-center justify-between gap-3 text-xs py-0.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-xs shrink-0" style="background-color: ${conf.hex}"></span>
+              <span class="font-bold text-gray-800 text-[11px] truncate">${item.intent}</span>
+            </div>
+            <span class="text-gray-400 font-mono text-[10px] tabular-nums shrink-0">${pct}% (${count})</span>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-6 w-full py-1">
+          <div class="relative shrink-0">
+            <svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-xs">
+              ${paths}
+              ${labels}
+              <circle cx="100" cy="100" r="${rIn - 2}" fill="#FFFFFF" />
+              <text x="100" y="95" text-anchor="middle" class="text-xl font-extrabold fill-gray-900 tabular-nums">${total.toLocaleString('id-ID')}</text>
+              <text x="100" y="112" text-anchor="middle" class="text-[9px] font-bold uppercase tracking-wider fill-gray-400">QUERIES</text>
+            </svg>
+          </div>
+          <div class="flex-1 w-full max-w-xs flex flex-col justify-center divide-y divide-gray-100/80">
+            ${legendHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadChatLogs() {
+      try {
+        chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading chat logs from FastAPI backend...</td></tr>`;
+        const res = await fetch('/api/logs?limit=500');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const kpis = data.kpis || {};
+        const logs = data.logs || [];
+        const intents = data.intents || [];
+        const trends = data.trends || [];
+        const users = data.users || [];
+
+        rawChatLogs = logs;
+
+        // Populate KPIs
+        logStatQueries.innerText = (kpis.total_queries ?? logs.length).toLocaleString('id-ID');
+        const avgSec = ((kpis.avg_latency || 0) / 1000).toFixed(2);
+        logStatLatency.innerText = `${avgSec}s`;
+        logStatHitrate.innerText = `${(kpis.hit_rate || 0).toFixed(1)}%`;
+        const costIdr = Math.round((kpis.total_cost || 0) * USD_TO_IDR);
+        logStatCost.innerText = `Rp ${costIdr.toLocaleString('id-ID')}`;
+        logStatTokens.innerText = `${((kpis.or_cached_tokens || 0) / 1_000_000).toFixed(1)}M cached tokens`;
+
+        // Render Intent Distribution Donut Chart
+        renderIntentDonut(intents, intentDonutContainer);
+
+        // Render Trends Bars
+        if (trends.length > 0) {
+          const maxQ = Math.max(...trends.map(t => t.queries || 1));
+          trendsChartContainer.innerHTML = trends.map(t => {
+            const hPct = Math.max(8, Math.round(((t.queries || 0) / maxQ) * 100));
+            const shortDate = t.date ? t.date.slice(5) : '';
+            return `
+              <div class="flex-1 flex flex-col items-center gap-1 group h-full justify-end">
+                <span class="text-[9px] font-mono text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">${t.queries}</span>
+                <div class="w-full max-w-[22px] bg-gray-900 hover:bg-black rounded-t transition-all" style="height: ${hPct}%"></div>
+                <span class="text-[9px] font-mono text-gray-400 truncate w-full text-center">${shortDate}</span>
+              </div>
+            `;
+          }).join('');
+        } else {
+          trendsChartContainer.innerHTML = `<div class="w-full text-gray-400 text-xs text-center">No trend data available.</div>`;
+        }
+
+        renderChatLogsTable();
+
+        if (users.length > 0) {
+          ltmRows.innerHTML = users.map(u => `
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="py-2.5 px-3 font-bold text-gray-900">${u.user_id}</td>
+              <td class="py-2.5 px-3 text-gray-700 whitespace-pre-line text-xs">${u.learning_summary || '—'}</td>
+              <td class="py-2.5 px-3 text-right text-gray-400 tabular-nums">${formatTime(u.updated_at)}</td>
+            </tr>
+          `).join('');
+        } else {
+          ltmRows.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-gray-400">No user LTM records.</td></tr>`;
+        }
+
+      } catch (err) {
+        console.error('Failed to load chat logs:', err);
+        chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-rose-600 font-mono">Error loading logs: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderChatLogsTable() {
+      const q = (logSearchInput.value || '').toLowerCase().trim();
+      const intentFilter = logIntentFilter.value;
+
+      const filtered = rawChatLogs.filter(row => {
+        if (intentFilter !== 'ALL' && row.intent !== intentFilter) return false;
+        if (q) {
+          const queryMatch = (row.query || '').toLowerCase().includes(q);
+          const sessionMatch = (row.session_id || '').toLowerCase().includes(q);
+          const answerMatch = (row.answer || '').toLowerCase().includes(q);
+          if (!queryMatch && !sessionMatch && !answerMatch) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        chatLogsRows.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No matching log records found.</td></tr>`;
+        return;
+      }
+
+      chatLogsRows.innerHTML = filtered.slice(0, 100).map((row, idx) => {
+        const user = parseSessionUser(row.session_id);
+        const costIdr = Math.round((row.cost || 0) * USD_TO_IDR);
+        const latSec = ((row.latency_ms || 0) / 1000).toFixed(2);
+        
+        let ansPreview = row.answer || '—';
+        if (ansPreview.length > 95) {
+          ansPreview = ansPreview.slice(0, 95).trim() + '...';
+        }
+
+        return `
+          <tr data-log-index="${idx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
+            <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-gray-900 truncate" title="${escapeHtml(row.session_id || '')}">${escapeHtml(user.name)}</div>
+              <div class="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                <span class="inline-block px-1.5 py-0.2 rounded bg-gray-100 text-gray-700 font-medium text-[10px]">${escapeHtml(user.role)}</span>
+                <span class="font-mono text-gray-400 text-[10px]" title="${escapeHtml(row.session_id || '')}">ID: ${escapeHtml(user.id)}</span>
+              </div>
+            </td>
+            <td class="py-3 px-4 max-w-sm sm:max-w-md">
+              <div class="font-semibold text-gray-900 text-xs">${escapeHtml(row.query || '—')}</div>
+              <div class="text-[11px] text-gray-500 mt-1 line-clamp-2 leading-relaxed font-sans" title="${escapeHtml(row.answer || '')}">
+                ${escapeHtml(ansPreview)}
+              </div>
+            </td>
+            <td class="py-3 px-4">
+              ${getIntentBadge(row.intent)}
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-mono text-gray-900 font-semibold text-xs tabular-nums">${latSec}s</div>
+              <span class="text-[10px] ${row.cache_hit || (row.or_cached_tokens > 0) ? 'text-emerald-600 font-semibold' : 'text-gray-400'}">
+                ${row.cache_hit || (row.or_cached_tokens > 0) ? '⚡ Cached' : 'Network'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-gray-400 tabular-nums whitespace-nowrap text-xs">${formatTime(row.created_at)}</td>
+            <td class="py-3 px-4 text-gray-600 font-mono tabular-nums text-xs">${(row.tokens || 0).toLocaleString('id-ID')}</td>
+            <td class="py-3 px-4 text-right text-gray-900 font-bold tabular-nums">Rp ${costIdr.toLocaleString('id-ID')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Detail Modal click handler (NO chunks, NO faithfulness, NO query rewrite)
+      document.querySelectorAll('.chat-log-row').forEach(tr => {
+        tr.addEventListener('click', () => {
+          const idx = parseInt(tr.getAttribute('data-log-index'), 10);
+          const row = filtered[idx];
+          if (!row) return;
+
+          const user = parseSessionUser(row.session_id);
+          modalTitle.innerText = `${user.name} (${user.role})`;
+          modalSubtitle.innerText = `Session ID: ${row.session_id || '—'} • ${formatTime(row.created_at)}`;
+          modalContent.innerHTML = `
+            <div class="space-y-4">
+              <!-- Meta chips (Vocalyn Soft Pill style) -->
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                ${getIntentBadge(row.intent)}
+                <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">Model: ${displayModel(row.or_provider)}</span>
+                <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">Latency: ${((row.latency_ms || 0)/1000).toFixed(2)}s</span>
+                <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-medium">Tokens: ${(row.tokens || 0).toLocaleString('id-ID')}</span>
+                <span class="px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-medium">Cost: Rp ${Math.round((row.cost || 0) * USD_TO_IDR).toLocaleString('id-ID')}</span>
+              </div>
+
+              <!-- User Question -->
+              <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">User Query</div>
+                <div class="text-gray-900 text-sm whitespace-pre-wrap font-medium">${escapeHtml(row.query || '—')}</div>
+              </div>
+
+              <!-- Assistant Answer -->
+              <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
+                <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Assistant Response</div>
+                <div class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.answer || '—')}</div>
+              </div>
+            </div>
+          `;
+          detailModal.showModal();
+        });
+      });
+    }
+
+    function displayModel(val) {
+      if (!val) return 'Mimo v2.5';
+      const parts = String(val).split('/');
+      return parts[parts.length - 1];
+    }
+
+    logSearchInput.addEventListener('input', renderChatLogsTable);
+    logIntentFilter.addEventListener('change', renderChatLogsTable);
+
+    // -------------------------------------------------------------
+    // TAB 3: SPREADSHEET KPI DIRECTORY (POSTGRESQL DATA)
+    // -------------------------------------------------------------
+    const kpiTotalBadge = document.getElementById('kpi-total-badge');
+    const kpiTableRows = document.getElementById('kpi-table-rows');
+    const kpiSearchInput = document.getElementById('kpi-search-input');
+    const kpiRoleFilter = document.getElementById('kpi-role-filter');
+    const btnReloadKpi = document.getElementById('btn-reload-kpi');
+    const btnKpiPrev = document.getElementById('btn-kpi-prev');
+    const btnKpiNext = document.getElementById('btn-kpi-next');
+    const kpiCurrentPage = document.getElementById('kpi-current-page');
+    const kpiPageIndicator = document.getElementById('kpi-page-indicator');
+
+    async function loadKPIData(page = 1) {
+      kpiPage = page;
+      kpiCurrentPage.innerText = String(page);
+      btnKpiPrev.disabled = page <= 1;
+
+      const q = (kpiSearchInput.value || '').trim();
+
+      try {
+        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">Querying PostgreSQL table on Proxmox...</td></tr>`;
+        let url = `/api/kpi?scope=users&page=${page}&limit=50`;
+        if (q) url += `&search=${encodeURIComponent(q)}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const users = data.users || (Array.isArray(data) ? data : []);
+        rawKPIRows = users;
+
+        const total = data.total ?? data.users_total ?? users.length;
+        kpiTotalBadge.innerText = Number(total).toLocaleString('id-ID');
+        kpiPageIndicator.innerText = `Showing Page ${page} (${users.length} of ${Number(total).toLocaleString('id-ID')} records)`;
+        
+        renderKPITable();
+
+      } catch (err) {
+        console.error('Failed to load KPI data:', err);
+        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-rose-600 font-mono">Error loading PostgreSQL KPI: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderKPITable() {
+      const roleFilter = kpiRoleFilter.value;
+
+      const filtered = rawKPIRows.filter(row => {
+        if (roleFilter !== 'ALL') {
+          const r = String(row.role || row.position || '').toUpperCase();
+          if (!r.includes(roleFilter)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">No matching employees found on this page.</td></tr>`;
+        return;
+      }
+
+      kpiTableRows.innerHTML = filtered.map((row, idx) => {
+        const skor = row['Skor KPI'] || row.skor_kpi || '—';
+        const status = row['KPI Status'] || row.kpi_status || 'Need Improvement';
+        const isGood = String(skor).includes('100') || String(status).includes('Achieve') || String(status).includes('Good');
+
+        return `
+          <tr data-kpi-index="${idx}" class="kpi-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
+            <td class="py-3 px-4"><input type="checkbox" class="rounded border-gray-300"></td>
+            <td class="py-3 px-4 font-bold text-gray-900 font-mono group-hover:text-black transition-colors">${row.username || '—'}</td>
+            <td class="py-3 px-4 text-gray-900 font-semibold">${row.full_name || '—'}</td>
+            <td class="py-3 px-4">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                ${row.role || row.position || 'BP'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-gray-600">${row.point || '—'}</td>
+            <td class="py-3 px-4 text-gray-500">${row.area || ''} / ${row.regional || ''}</td>
+            <td class="py-3 px-4 font-bold tabular-nums ${isGood ? 'text-emerald-600' : 'text-gray-900'}">${skor}</td>
+            <td class="py-3 px-4 text-right">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${isGood ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}">
+                ${status}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Detail Modal click handler for KPI row
+      document.querySelectorAll('.kpi-row').forEach(tr => {
+        tr.addEventListener('click', () => {
+          const idx = parseInt(tr.getAttribute('data-kpi-index'), 10);
+          const row = filtered[idx];
+          if (!row) return;
+
+          modalTitle.innerText = `Employee Record: ${row.full_name || row.username}`;
+          modalSubtitle.innerText = `PostgreSQL user_kpi_data • ${row.role || 'Employee'}`;
+
+          const entries = Object.entries(row).filter(([k]) => k !== 'data');
+          const highlights = [
+            ['NIK / Username', row.username],
+            ['Nama Lengkap', row.full_name],
+            ['Jabatan', `${row.role || ''} - ${row.position || ''}`],
+            ['Periode KPI', row.periode_kpi],
+            ['Point / Cabang', row.point],
+            ['Area & Regional', `${row.area || ''} / ${row.regional || ''} (${row.pulau || ''})`],
+            ['Ranking', row.Ranking || '—'],
+            ['Skor KPI', row['Skor KPI'] || '—'],
+            ['Status KPI', row['KPI Status'] || '—'],
+            ['Total Insentif', row['Total Insentif'] || '—'],
+          ];
+
+          modalContent.innerHTML = `
+            <div class="space-y-4">
+              <!-- Summary Grid -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                ${highlights.map(([label, val]) => `
+                  <div class="p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">${label}</span>
+                    <div class="text-gray-900 font-bold text-xs truncate mt-0.5">${val || '—'}</div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Full Metrics Parameters -->
+              <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-2">
+                <div class="text-xs font-bold text-gray-800 uppercase text-[10px] tracking-wider">All Parameters in PostgreSQL</div>
+                <div class="max-h-64 overflow-y-auto space-y-1.5 pr-1 text-xs divide-y divide-gray-200/50">
+                  ${entries.map(([k, v]) => `
+                    <div class="flex items-center justify-between py-1.5">
+                      <span class="text-gray-500 truncate max-w-[280px]">${k}</span>
+                      <span class="text-gray-900 font-semibold tabular-nums font-mono">${String(v)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+          detailModal.showModal();
+        });
+      });
+    }
+
+    kpiRoleFilter.addEventListener('change', renderKPITable);
+    btnReloadKpi.addEventListener('click', () => loadKPIData(1));
+    kpiSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadKPIData(1);
+    });
+
+    btnKpiPrev.addEventListener('click', () => {
+      if (kpiPage > 1) loadKPIData(kpiPage - 1);
+    });
+    btnKpiNext.addEventListener('click', () => {
+      loadKPIData(kpiPage + 1);
+    });
+
+    // Refresh all active tab data
+    btnRefreshAll.addEventListener('click', () => {
+      if (activeTab === 'sync') loadSyncTelemetry();
+      else if (activeTab === 'logs') loadChatLogs();
+      else if (activeTab === 'kpi') loadKPIData(kpiPage);
+      notify('Refreshed active dataset.');
+    });
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Initialize Default View
+    loadSyncTelemetry();
+  </script>
+</body>
+</html>

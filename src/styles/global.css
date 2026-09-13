@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #F3F4F6;
+  color: #111827;
+}
+
+/* Sidebar collapse state */
+@media (min-width: 1024px) {
+  #main-sidebar.is-collapsed {
+    width: 5rem !important;
+  }
+  #main-sidebar.is-collapsed .sidebar-text {
+    display: none !important;
+  }
+  #main-sidebar.is-collapsed .tab-btn {
+    justify-content: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  #main-sidebar.is-collapsed #sidebar-toggle-icon {
+    transform: rotate(180deg);
+  }
+  #main-sidebar.is-collapsed #operator-card {
+    justify-content: center !important;
+    padding: 0.5rem !important;
+  }
+  #main-sidebar.is-collapsed #sys-widget-card {
+    padding: 0.75rem 0.5rem !important;
+    text-align: center;
+  }
+}
+

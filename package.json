@@ -1,0 +1,19 @@
+{
+  "name": "cag-admin",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.3.1",
+    "astro": "^7.3.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.8",
+    "tailwindcss": "^4.0.8"
+  }
+}
