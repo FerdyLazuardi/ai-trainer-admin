@@ -624,8 +624,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     <!-- ========================================== -->
     <div id="tab-content-kpi" class="tab-pane hidden space-y-6">
 
-      <!-- Top Summary Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <!-- Top Summary Cards (3 Columns) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
           <div class="flex items-center justify-between">
@@ -665,19 +665,6 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             <span id="kpi-target-roles" class="text-base font-bold text-gray-900 truncate block" title="BP / BM / AM / RM">BP / BM / AM / RM</span>
           </div>
           <span id="kpi-target-subtitle" class="text-[11px] text-gray-400 mt-1 truncate block">Hierarchy: Point → Area → Reg → Pulau</span>
-        </div>
-
-        <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500">Fast In-Memory Cache</span>
-            <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            </div>
-          </div>
-          <div class="mt-2">
-            <span class="text-lg font-bold text-emerald-600">&lt; 10ms Latency</span>
-          </div>
-          <span class="text-[11px] text-gray-400 mt-1">Instant search & pagination</span>
         </div>
 
       </div>
