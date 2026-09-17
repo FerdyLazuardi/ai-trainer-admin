@@ -734,9 +734,11 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
             </div>
           </div>
           <div class="mt-2">
-            <span id="kpi-target-roles" class="text-base font-bold text-gray-900 truncate block" title="BP / BM / AM / RM">BP / BM / AM / RM</span>
+            <div id="kpi-target-roles" class="flex flex-wrap items-center gap-1.5 py-0.5" title="Active roles in KPI dataset">
+              <span class="text-xs font-bold text-gray-400">Loading roles...</span>
+            </div>
           </div>
-          <span id="kpi-target-subtitle" class="text-[11px] text-gray-400 mt-1 truncate block">Hierarchy: Point → Area → Reg → Pulau</span>
+          <span id="kpi-target-subtitle" class="text-[11px] text-gray-400 mt-2 block">Hierarchy: Point → Area → Reg → Pulau</span>
         </div>
 
       </div>
@@ -757,12 +759,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           </div>
 
           <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <select id="kpi-role-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
+            <select id="kpi-role-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer max-w-[210px] sm:max-w-none">
               <option value="ALL">All Roles</option>
-              <option value="BP">BP (Business Partner)</option>
-              <option value="BM">BM (Business Manager)</option>
-              <option value="AM">AM (Area Manager)</option>
-              <option value="RM">RM (Regional Manager)</option>
             </select>
 
             <button id="btn-reload-kpi" class="px-3.5 py-2 rounded-2xl bg-gray-900 text-white text-xs font-semibold hover:bg-black shadow-xs cursor-pointer">
@@ -2232,21 +2230,78 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
         kpiTotalBadge.innerText = Number(total).toLocaleString('id-ID');
         kpiPageIndicator.innerText = `Showing Page ${page} (${users.length} of ${Number(total).toLocaleString('id-ID')} records)`;
 
-        // Dynamically update Target Users Card
+        // Dynamically update Target Users Card & Role Filter Options
+        const ROLE_NAMES = {
+          BP: 'Business Partner',
+          BM: 'Business Manager',
+          AM: 'Area Manager',
+          RM: 'Regional Manager',
+          HMB: 'Head of Micro Business',
+          HO: 'Head Office',
+          HQ: 'Headquarters',
+        };
+
         if (data.role_counts && Object.keys(data.role_counts).length > 0) {
           const roleEntries = Object.entries(data.role_counts).filter(([r]) => r && r !== 'UNKNOWN');
+          
+          // 1. Render all active roles as clean wrap chips (no ellipsis truncation)
           if (roleEntries.length > 0 && kpiTargetRoles) {
-            const formatted = roleEntries.map(([r, c]) => `${r} (${Number(c).toLocaleString('id-ID')})`).join(' • ');
-            kpiTargetRoles.innerText = formatted;
-            kpiTargetRoles.title = formatted;
+            kpiTargetRoles.innerHTML = roleEntries.map(([r, c]) => `
+              <button
+                type="button"
+                data-role-chip="${r}"
+                class="role-chip inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gray-100/80 hover:bg-indigo-50 border border-gray-200/80 hover:border-indigo-300 text-xs font-bold text-gray-800 hover:text-indigo-700 transition-all cursor-pointer shadow-2xs group"
+                title="Filter by ${r}"
+              >
+                <span class="text-indigo-600 font-extrabold group-hover:text-indigo-700">${r}</span>
+                <span class="text-gray-500 font-semibold tabular-nums text-[11px] group-hover:text-indigo-600">(${Number(c).toLocaleString('id-ID')})</span>
+              </button>
+            `).join('');
+
+            // Quick click on chip to filter table
+            kpiTargetRoles.querySelectorAll('.role-chip').forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const selectedRole = btn.getAttribute('data-role-chip');
+                if (kpiRoleFilter && selectedRole) {
+                  kpiRoleFilter.value = selectedRole;
+                  loadKPIData(1);
+                }
+              });
+            });
           }
           if (kpiTargetSubtitle) {
-            kpiTargetSubtitle.innerText = `${roleEntries.length} Active Roles in Spreadsheet KPI`;
+            kpiTargetSubtitle.innerText = `${roleEntries.length} Active Roles in Spreadsheet KPI • Click role to filter`;
+          }
+
+          // 2. Dynamically populate Role Filter dropdown to match all active roles
+          if (kpiRoleFilter) {
+            const currentSelected = kpiRoleFilter.value || 'ALL';
+            const totalCountFormatted = Number(total).toLocaleString('id-ID');
+
+            let optionsHtml = `<option value="ALL">All Roles (${totalCountFormatted})</option>`;
+            roleEntries.forEach(([r, c]) => {
+              const desc = ROLE_NAMES[r] ? ` (${ROLE_NAMES[r]})` : '';
+              const countFormatted = Number(c).toLocaleString('id-ID');
+              optionsHtml += `<option value="${r}">${r}${desc} - ${countFormatted}</option>`;
+            });
+
+            kpiRoleFilter.innerHTML = optionsHtml;
+            // Preserve active filter if still present in options
+            if (roleEntries.some(([r]) => r === currentSelected)) {
+              kpiRoleFilter.value = currentSelected;
+            } else {
+              kpiRoleFilter.value = 'ALL';
+            }
           }
         } else if (users.length > 0 && kpiTargetRoles) {
           const uniqueRoles = [...new Set(users.map(u => u.role || u.position).filter(Boolean))];
           if (uniqueRoles.length > 0) {
-            kpiTargetRoles.innerText = uniqueRoles.join(' • ');
+            kpiTargetRoles.innerHTML = uniqueRoles.map(r => `
+              <span class="inline-flex items-center px-2 py-0.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-bold text-gray-800">
+                <span class="text-indigo-600 font-extrabold">${r}</span>
+              </span>
+            `).join('');
           }
         }
         
