@@ -2237,6 +2237,8 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
           AM: 'Area Manager',
           RM: 'Regional Manager',
           HMB: 'Head of Micro Business',
+          'Head HMB': 'Head of Micro Business',
+          'HEAD HMB': 'Head of Micro Business',
           HO: 'Head Office',
           HQ: 'Headquarters',
         };
@@ -2314,12 +2316,13 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
     }
 
     function renderKPITable() {
-      const roleFilter = kpiRoleFilter.value;
+      const roleFilter = kpiRoleFilter ? kpiRoleFilter.value : 'ALL';
+      const roleUpper = String(roleFilter || '').trim().toUpperCase();
 
       const filtered = rawKPIRows.filter(row => {
-        if (roleFilter !== 'ALL') {
-          const r = String(row.role || row.position || '').toUpperCase();
-          if (!r.includes(roleFilter)) return false;
+        if (roleUpper !== 'ALL') {
+          const r = String(row.role || row.position || '').trim().toUpperCase();
+          if (r !== roleUpper && !r.includes(roleUpper)) return false;
         }
         return true;
       });
