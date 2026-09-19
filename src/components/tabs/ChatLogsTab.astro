@@ -1,0 +1,262 @@
+---
+// src/components/tabs/ChatLogsTab.astro
+---
+
+<div id="tab-content-logs" class="tab-pane hidden space-y-6">
+
+  <!-- Sub-Tabs Navigation (Recent Logs | Session Explorer | User LTM | System Prompts) -->
+  <div class="flex items-center gap-2 pb-2 border-b border-gray-200/80 overflow-x-auto">
+    <button data-log-subtab="recent" class="log-subtab-btn active px-4 py-2 rounded-full text-xs font-bold text-gray-900 bg-white border border-gray-200/80 shadow-xs cursor-pointer transition-all whitespace-nowrap">
+      Recent Logs & Overview
+    </button>
+    <button data-log-subtab="explorer" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all whitespace-nowrap">
+      Session Explorer
+    </button>
+    <button data-log-subtab="ltm" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all whitespace-nowrap">
+      User LTM Profiles
+    </button>
+    <button id="btn-goto-prompts" type="button" class="ml-auto px-3.5 py-1.5 rounded-full text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50/80 cursor-pointer transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+      <span>System Prompts</span>
+      <span class="text-[10px] font-bold text-blue-600 bg-blue-100/70 px-1.5 py-0.2 rounded-full">6</span>
+    </button>
+  </div>
+
+  <!-- PANE 1: RECENT LOGS & OVERVIEW -->
+  <div id="subtab-pane-recent" class="log-subtab-pane space-y-6">
+
+    <!-- Metrics Row (Vocalyn Clean White Cards) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Total Queries</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span id="log-stat-queries" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0</span>
+          <span class="text-xs font-medium text-gray-500 ml-2">turns</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">Total conversation turns</span>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Avg. Latency</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span id="log-stat-latency" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0.0s</span>
+          <span class="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md ml-2">p50</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">End-to-end response time</span>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">OR Cache Hit Rate</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span id="log-stat-hitrate" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0%</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">Prompt caching efficiency</span>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Estimated Cost</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span id="log-stat-cost" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">Rp 0</span>
+        </div>
+        <span id="log-stat-tokens" class="text-[11px] text-gray-400 mt-1">0 cached tokens</span>
+      </div>
+
+    </div>
+
+    <!-- Charts Row: Intent Distribution (Donut) & Daily Trends -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0">
+        <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Classification Intent</h3>
+        </div>
+        <div id="intent-donut-container" class="pt-1 flex items-center justify-center min-h-[260px] overflow-x-auto">
+          <div class="text-gray-400 py-6 text-center text-xs">Loading intent donut chart...</div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0 overflow-hidden">
+        <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Daily Request Trends</h3>
+          <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
+        </div>
+        <div class="w-full overflow-x-auto pb-2 -mb-2">
+          <div id="trends-chart-container" class="h-48 flex items-end gap-1.5 sm:gap-2 pt-4 pb-2 min-w-[500px] lg:min-w-0 w-full">
+            <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Chat Logs Table Section -->
+    <div class="space-y-4">
+      
+      <!-- Search & Filter Bar (Vocalyn Exact Match) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="relative w-full sm:w-80">
+          <input
+            id="log-search-input"
+            type="text"
+            placeholder="Search user, query, response..."
+            class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+          />
+          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="log-intent-filter" class="px-3.5 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-semibold text-gray-700 focus:outline-none shadow-xs cursor-pointer">
+            <option value="ALL">All Intents</option>
+            <option value="KNOWLEDGE">KNOWLEDGE</option>
+            <option value="COACHING">COACHING</option>
+            <option value="GREETING">GREETING</option>
+            <option value="OFF_SCOPE">OFF_SCOPE</option>
+            <option value="TOPIC_LIST">TOPIC_LIST</option>
+            <option value="AMBIGUOUS">AMBIGUOUS</option>
+            <option value="SECTION_DRILLDOWN">SECTION_DRILLDOWN</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+              <tr>
+                <th class="py-3.5 px-4 w-32">Time (WIB)</th>
+                <th class="py-3.5 px-4 w-44">User / Role</th>
+                <th class="py-3.5 px-4">Query & Response</th>
+                <th class="py-3.5 px-4 w-28">Intent</th>
+                <th class="py-3.5 px-4 w-20">Latency</th>
+                <th class="py-3.5 px-4 w-20">Tokens</th>
+                <th class="py-3.5 px-4 text-right w-20">Cost (IDR)</th>
+              </tr>
+            </thead>
+            <tbody id="chat-logs-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+              <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading chat logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination Controls for Chat Logs -->
+      <div class="flex items-center justify-between pt-2 text-xs text-gray-500 font-sans">
+        <span id="log-page-indicator">Showing records</span>
+        
+        <div class="flex items-center gap-1.5 font-semibold">
+          <button id="btn-log-prev" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs">
+            ‹
+          </button>
+          <span id="log-current-page" class="w-8 h-8 rounded-xl bg-gray-900 text-white text-xs flex items-center justify-center font-bold">1</span>
+          <button id="btn-log-next" class="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs">
+            ›
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- PANE 2: SESSION EXPLORER -->
+  <div id="subtab-pane-explorer" class="log-subtab-pane hidden space-y-6">
+    
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 class="text-sm font-bold text-gray-900">Session History Explorer</h3>
+        <p class="text-xs text-gray-400">Select a session to view chronological conversation turns in a modal</p>
+      </div>
+      <div class="relative w-full sm:w-72">
+        <input
+          id="explorer-search-input"
+          type="text"
+          placeholder="Filter session ID / user..."
+          class="w-full pl-9 pr-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+        />
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+
+    <!-- Sessions Aggregation Table -->
+    <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+            <tr>
+              <th class="py-3 px-4">User</th>
+              <th class="py-3 px-4">Session ID</th>
+              <th class="py-3 px-4">Total Turns</th>
+              <th class="py-3 px-4">Latest Activity</th>
+              <th class="py-3 px-4 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="session-summary-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+            <tr><td colspan="5" class="py-8 text-center text-gray-400">Loading session records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PANE 3: USER LTM PROFILES -->
+  <div id="subtab-pane-ltm" class="log-subtab-pane hidden space-y-6">
+    
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 class="text-sm font-bold text-gray-900">User LTM Profiles</h3>
+        <p class="text-xs text-gray-400">Long-Term Memory synthesis stored in PostgreSQL</p>
+      </div>
+      <div class="relative w-full sm:w-72">
+        <input
+          id="ltm-search-input"
+          type="text"
+          placeholder="Search User ID or learning summary..."
+          class="w-full pl-9 pr-4 py-2 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none focus:border-gray-400 shadow-xs"
+        />
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider border-b border-gray-200">
+            <tr>
+              <th class="py-3 px-4 w-32">User ID</th>
+              <th class="py-3 px-4">Learning Summary</th>
+              <th class="py-3 px-4 text-right w-44">Last Updated</th>
+            </tr>
+          </thead>
+          <tbody id="ltm-rows" class="divide-y divide-gray-100 bg-white text-gray-700">
+            <tr><td colspan="3" class="py-8 text-center text-gray-400">Loading user LTM profiles...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>

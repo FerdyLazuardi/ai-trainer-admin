@@ -1,0 +1,144 @@
+---
+// src/components/tabs/ActiveKnowledgeTab.astro
+---
+
+<div id="tab-content-kb" class="tab-pane hidden space-y-6">
+
+  <!-- Top Metric Cards (4 Columns) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active KB Tokens</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+      </div>
+      <div class="mt-2">
+        <span id="kb-stat-tokens" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">-</span>
+        <span class="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
+      </div>
+      <span class="text-[11px] text-gray-400 mt-1">Cached in CAG Prompt Context</span>
+    </div>
+
+    <!-- Active Topics (#) Card -->
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Topics (#)</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-500 bg-gray-50 font-bold font-mono text-xs">
+          #
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span id="kb-stat-topics" class="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">-</span>
+        <span class="text-xs font-semibold text-gray-500">H1 Topics</span>
+      </div>
+      <span class="text-[11px] text-gray-400 mt-1">Identified from Markdown # Title</span>
+    </div>
+
+    <!-- Subtopics (##) Card -->
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Subtopics (##)</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-500 bg-gray-50 font-bold font-mono text-xs">
+          ##
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span id="kb-stat-subtopics" class="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">-</span>
+        <span class="text-xs font-semibold text-gray-500">H2 Subtopics</span>
+      </div>
+      <span class="text-[11px] text-gray-400 mt-1">Identified from Markdown ## Subtitles</span>
+    </div>
+
+    <!-- Document Size Card -->
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Document Size</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+      </div>
+      <div class="mt-2">
+        <span id="kb-stat-chars" class="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">-</span>
+      </div>
+      <span id="kb-stat-lines" class="text-[11px] text-gray-400 mt-1 tabular-nums">- lines</span>
+    </div>
+
+  </div>
+
+  <!-- Controls & Search Toolbar -->
+  <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50/70 border border-gray-200/80 shadow-xs">
+    <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <!-- Search Input -->
+      <div class="relative flex-1 max-w-md">
+        <input type="text" id="kb-search-input" placeholder="Search topics (#), subtopics (##), or content..." class="w-full text-xs rounded-xl border border-gray-200 bg-white px-3.5 py-2 pl-9 text-gray-800 focus:outline-none focus:border-gray-900" />
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+
+      <!-- Topic Hashtag Filter Dropdown -->
+      <select id="kb-topic-select" class="text-xs rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900 cursor-pointer max-w-xs truncate">
+        <option value="">All Topics (#)</option>
+      </select>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- View Mode Tabs -->
+      <div class="flex items-center rounded-xl bg-gray-200/70 p-1 text-xs font-semibold">
+        <button id="btn-kb-view-topics" type="button" class="px-3 py-1 rounded-lg bg-white text-gray-900 shadow-2xs transition-all cursor-pointer">
+          Topic Cards (#)
+        </button>
+        <button id="btn-kb-view-raw" type="button" class="px-3 py-1 rounded-lg text-gray-600 hover:text-gray-900 transition-all cursor-pointer">
+          Raw Markdown
+        </button>
+      </div>
+
+      <button id="btn-kb-toggle-expand" type="button" class="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-all cursor-pointer shadow-2xs">
+        Expand All
+      </button>
+      <button id="btn-kb-copy-all" type="button" class="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-all cursor-pointer shadow-2xs">
+        Copy Full KB
+      </button>
+      <button id="btn-kb-download-file" type="button" class="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-all cursor-pointer shadow-2xs">
+        Download .md
+      </button>
+      <button id="btn-kb-refresh" type="button" class="px-3.5 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <span>Reload</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary View: Per-Topic Hashtag Cards Container -->
+  <div id="kb-topics-container" class="space-y-4">
+    <div class="flex items-center justify-between px-1">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-gray-800 uppercase tracking-wider">Knowledge Base Topics (#)</span>
+        <span id="kb-match-badge" class="px-2.5 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700 font-mono text-[11px] font-bold">Loading topics...</span>
+      </div>
+      <span class="text-[11px] text-gray-400">Click any topic to expand / collapse</span>
+    </div>
+
+    <!-- Dynamic Topic Cards List -->
+    <div id="kb-topics-list" class="space-y-3.5">
+      <div class="p-8 rounded-3xl bg-white border border-gray-200 text-center text-gray-400 text-xs">
+        Loading knowledge base topics...
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary View: Full Raw Markdown Viewer (Toggled) -->
+  <div id="kb-raw-container" class="hidden rounded-3xl bg-white border border-gray-200/80 shadow-xs overflow-hidden flex flex-col">
+    <div class="px-6 py-3.5 bg-gray-50/70 border-b border-gray-200/80 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="font-mono text-xs font-bold text-gray-800">active_cag_kb.md</span>
+        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-mono text-[10px] font-semibold">Raw Full Document</span>
+      </div>
+      <span class="text-[11px] text-gray-400 font-mono">Live PostgreSQL CAG Pack</span>
+    </div>
+    <div id="kb-viewer-text" class="p-6 font-mono text-xs leading-relaxed text-gray-800 max-h-[70vh] overflow-y-auto whitespace-pre-wrap select-text bg-[#FAFAFA]">
+      Loading active knowledge base from backend...
+    </div>
+  </div>
+
+</div>

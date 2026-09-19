@@ -1,0 +1,19 @@
+---
+// Session Chat Thread Dialog Modal
+---
+<dialog id="thread-modal" class="fixed inset-0 m-auto z-50 max-w-3xl w-[94vw] rounded-3xl bg-white border border-gray-200 text-gray-900 p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-xs">
+  <div class="p-6 sm:p-8 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+      <div>
+        <h3 id="thread-session-title" class="text-base font-bold text-gray-900">Conversation History</h3>
+        <p id="thread-session-subtitle" class="text-xs text-gray-400 font-mono mt-0.5">Session ID: —</p>
+      </div>
+      <button id="btn-close-thread-modal" type="button" class="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="thread-messages-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+      <!-- Rendered chat bubbles -->
+    </div>
+  </div>
+</dialog>

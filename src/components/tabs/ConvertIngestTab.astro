@@ -1,0 +1,173 @@
+---
+// src/components/tabs/ConvertIngestTab.astro
+---
+
+<div id="tab-content-convert" class="tab-pane hidden space-y-6">
+
+  <!-- Top Row: File Dropzone & Configuration -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Upload Dropzone (7 Cols) -->
+    <div id="convert-dropzone" class="lg:col-span-7 rounded-3xl bg-white border-2 border-dashed border-gray-300 hover:border-gray-400 p-6 flex flex-col items-center justify-center text-center relative transition-all group cursor-pointer shadow-xs min-h-[220px]">
+      <input type="file" id="convert-file-input" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" accept=".pptx,.ppt,.pdf,.xlsx,.xls,.md,.txt" />
+      <div class="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-200/80 flex items-center justify-center text-gray-500 mb-3 group-hover:scale-105 transition-transform">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+      </div>
+      <div class="text-sm font-bold text-gray-900">Drop PPTX, PDF, XLSX, or Markdown file here</div>
+      <div class="text-xs text-gray-500 mt-1">or click to browse from computer (auto-noise stripping & table extraction)</div>
+      
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-4">
+        <span class="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200/80 text-[10px] font-bold text-orange-700">.PPTX / .PPT</span>
+        <span class="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200/80 text-[10px] font-bold text-rose-700">.PDF</span>
+        <span class="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[10px] font-bold text-emerald-700">.XLSX (SheetJS)</span>
+        <span class="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200/80 text-[10px] font-bold text-blue-700">.MD / .TXT</span>
+      </div>
+
+      <!-- Parsing Indicator -->
+      <div id="convert-parse-indicator" class="hidden mt-4 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 flex items-center gap-2">
+        <svg class="w-4 h-4 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+        <span id="convert-parse-status-text">Parsing document...</span>
+      </div>
+
+      <!-- File Status Badge -->
+      <div id="convert-file-status" class="hidden mt-3 text-xs font-semibold text-emerald-700 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/70">
+        <span>Active File:</span> <span id="convert-file-name" class="font-mono text-gray-900"></span>
+      </div>
+
+      <!-- Noise Filter Stats Badge -->
+      <div id="convert-noise-stats" class="hidden mt-2 text-[11px] text-gray-500 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 font-mono"></div>
+    </div>
+
+    <!-- Configuration & Template Settings (5 Cols) -->
+    <div class="lg:col-span-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 p-5 space-y-3.5 shadow-xs flex flex-col justify-between">
+      <div class="space-y-3.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-gray-900 uppercase tracking-wider">CAG Template & Options</span>
+          <span id="convert-model-count-badge" class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">Free Models</span>
+        </div>
+        
+        <div>
+          <label class="flex items-center justify-between text-[11px] font-semibold text-gray-600 mb-1">
+            <span>AI Model (OpenCode & OpenRouter)</span>
+            <span id="convert-model-status" class="text-[10px] font-normal text-emerald-600">Loading...</span>
+          </label>
+          <select id="convert-model-select" class="w-full text-xs font-medium rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900 cursor-pointer truncate">
+            <optgroup label="OpenCode">
+              <option value="oc/mimo-v2.5-free" selected>oc/mimo-v2.5-free (Default)</option>
+              <option value="oc/big-pickle">oc/big-pickle</option>
+              <option value="oc/jev-1.13-free">oc/jev-1.13-free</option>
+              <option value="oc/ling-3.0-flash-fin-free">oc/ling-3.0-flash-fin-free</option>
+              <option value="oc/nemotron-3-ultra-free">oc/nemotron-3-ultra-free</option>
+              <option value="oc/nemotron-3.5-lightning-free">oc/nemotron-3.5-lightning-free</option>
+              <option value="oc/muse-spark-1.2-contributor-free">oc/muse-spark-1.2-contributor-free</option>
+              <option value="oc/muse-spark-1.3-contributor-free">oc/muse-spark-1.3-contributor-free</option>
+            </optgroup>
+            <optgroup label="OpenRouter">
+              <option value="openrouter/deepseek/deepseek-v4-flash-0731:free">openrouter/deepseek/deepseek-v4-flash-0731:free</option>
+              <option value="openrouter/deepseek/deepseek-v4.1-flash">openrouter/deepseek/deepseek-v4.1-flash</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-gray-600 mb-1">Document Type Template</label>
+          <select id="convert-doc-type" class="w-full text-xs font-medium rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900 cursor-pointer">
+            <option value="Training Module / Documentation" selected>Training Module / Documentation (PPT, PDF, SOP, Policy)</option>
+            <option value="Script / Roleplay Dialogue">Script / Roleplay Dialogue (Spreadsheet, Audio/Video)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-gray-600 mb-1">Topic</label>
+          <input type="text" id="convert-topic" placeholder="e.g. Prosedur Recovery" class="w-full text-xs rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900" />
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-gray-600 mb-1">Parsing Instruction (Optional)</label>
+          <input type="text" id="convert-parsing-instr" placeholder="e.g. Preserve flowchart steps as numbered list" class="w-full text-xs rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900" />
+        </div>
+
+        <!-- Role Block Scoping Toggle -->
+        <div class="pt-1">
+          <label class="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer select-none">
+            <input type="checkbox" id="convert-enable-roleblock" class="w-4 h-4 rounded text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer" />
+            <span>Enable Role Block (<code class="font-mono text-[11px] text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">&lt;role_block&gt;</code>)</span>
+          </label>
+          <p class="text-[10px] text-gray-400 mt-0.5 ml-6">Scope duties by role (BP, BM, AM, RM, HO). Disabled by default for pure clean markdown.</p>
+        </div>
+      </div>
+
+      <!-- Standardize Action Button with Integrated Progress Fill -->
+      <button id="btn-run-standardize" type="button" disabled class="relative overflow-hidden w-full py-2.5 px-4 rounded-xl bg-gray-100 border border-gray-200 text-gray-400 text-xs font-bold transition-all shadow-xs cursor-not-allowed flex items-center justify-center gap-2 mt-2 select-none">
+        <!-- Progress Fill Layer -->
+        <span id="btn-run-standardize-fill" class="absolute left-0 top-0 bottom-0 bg-emerald-600 transition-all duration-300 ease-out pointer-events-none" style="width: 0%;"></span>
+        <!-- Content Layer (Text + Spinner) -->
+        <span id="btn-run-standardize-content" class="relative z-10 flex items-center justify-center gap-2 pointer-events-none truncate">
+          <svg id="btn-run-standardize-spinner" class="hidden w-3.5 h-3.5 animate-spin text-white shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span id="btn-run-standardize-text">Standardize to CAG Markdown</span>
+        </span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Live Workbench: 2-Column Textareas -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Left Column: Raw / Parsed Markdown -->
+    <div class="rounded-3xl bg-white border border-gray-200/80 p-5 flex flex-col space-y-3 shadow-xs">
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+          <span class="text-xs font-bold text-gray-800 uppercase tracking-wider">Raw / Parsed Markdown</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-clear-raw" type="button" class="text-[10px] text-gray-400 hover:text-rose-600 font-medium cursor-pointer transition-colors">Clear</button>
+          <span id="raw-chars-badge" class="text-[11px] font-mono text-gray-500 tabular-nums">0 chars</span>
+        </div>
+      </div>
+      <textarea id="raw-markdown-input" rows="20" placeholder="Extracted markdown from PPTX/PDF/XLSX will appear here, or paste text manually..." class="w-full font-mono text-xs text-gray-800 bg-gray-50/50 border border-gray-200/80 rounded-2xl p-4 focus:outline-none focus:border-gray-900 resize-y leading-relaxed"></textarea>
+    </div>
+
+    <!-- Right Column: CAG Standardized Output -->
+    <div class="rounded-3xl bg-white border border-gray-200/80 p-5 flex flex-col space-y-3 shadow-xs">
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span class="text-xs font-bold text-gray-800 uppercase tracking-wider">CAG Standardized Output</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="std-tokens-badge" class="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700 tabular-nums">~0 tokens</span>
+        </div>
+      </div>
+
+      <textarea id="std-markdown-output" rows="20" placeholder="Standardized markdown output will stream here..." class="w-full font-mono text-xs text-gray-800 bg-gray-50/50 border border-gray-200/80 rounded-2xl p-4 focus:outline-none focus:border-gray-900 resize-y leading-relaxed"></textarea>
+
+      <!-- Compliance Checklist Badges & Action Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div class="flex items-center gap-2 text-[11px]">
+          <span id="check-h1" class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 font-medium">H1 Title</span>
+          <span id="check-bridge" class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 font-medium">Bridge ':'</span>
+          <span id="check-role" class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 font-medium">&lt;role_block&gt; (Off)</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btn-copy-std" type="button" class="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span>Copy</span>
+          </button>
+          <button id="btn-download-std" type="button" class="px-3.5 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Download .md</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

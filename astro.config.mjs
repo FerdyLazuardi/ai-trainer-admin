@@ -32,6 +32,30 @@ export default defineConfig({
         optional: true,
         default: 'amartha_secret_kpi_token_2026',
       }),
+      LLAMA_CLOUD_API_KEY: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: '',
+      }),
+      LLM_BASE_URL: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: 'http://localhost:20128/v1',
+      }),
+      LLM_API_KEY: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: '123456',
+      }),
+      LLM_MODEL: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: 'oc/mimo-v2.5-free',
+      }),
     },
   },
   vite: {

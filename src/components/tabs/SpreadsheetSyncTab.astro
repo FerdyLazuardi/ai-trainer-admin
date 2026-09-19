@@ -1,0 +1,227 @@
+---
+// src/components/tabs/SpreadsheetSyncTab.astro
+---
+
+<div id="tab-content-sync" class="tab-pane space-y-6">
+
+  <!-- Top Metric Cards (3 Columns) -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Total KPI Records</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+      </div>
+      <div class="mt-2">
+        <span id="stat-user-count" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">-</span>
+        <span class="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md ml-2 inline-flex items-center gap-0.5">Postgres</span>
+      </div>
+      <span class="text-[11px] text-gray-400 mt-1">Synced to table: user_kpi_data</span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Auto-Sync Cadence</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+      </div>
+      <div class="mt-2">
+        <span id="stat-cadence-badge" class="text-base font-bold text-gray-900">Loading...</span>
+      </div>
+      <span id="stat-cadence-detail" class="text-[11px] text-gray-400 mt-1">Streaq worker hourly cron</span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-500">Last Execution</span>
+        <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+          <span id="stat-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+        </div>
+      </div>
+      <div class="mt-2">
+        <span id="stat-status-text" class="text-base font-bold text-gray-900">—</span>
+      </div>
+      <span id="stat-last-time" class="text-[11px] text-gray-400 mt-1 truncate tabular-nums">—</span>
+    </div>
+
+  </div>
+
+  <!-- Operational Core: 2 Columns Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left: Pipeline Dispatcher (7 cols) -->
+    <section class="lg:col-span-7 space-y-6">
+      <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
+          <div>
+            <h2 class="text-base font-bold text-gray-900">Pipeline Dispatcher</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Enqueues Google Apps Script sync task to Proxmox Streaq worker.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-gray-200/70 text-[10px] font-mono font-medium text-gray-600">
+            TIMEOUT: 900s
+          </span>
+        </div>
+
+        <!-- Trigger Button -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <button
+            id="btn-trigger-sync"
+            class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm transition-all shadow-md shadow-emerald-600/25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg id="sync-spinner" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span id="sync-btn-label">Sync Spreadsheet</span>
+          </button>
+
+          <div class="text-xs text-gray-500 sm:text-right space-y-0.5 font-mono text-[11px]">
+            <div>Target: <span class="text-gray-900 font-semibold">User KPI (Postgres)</span></div>
+            <div>Method: <span class="text-gray-900 font-semibold">Google Apps Script</span></div>
+          </div>
+        </div>
+
+        <!-- In-Flight Pipeline Monitor (Dynamic Telemetry & Progress Bar) -->
+        <div id="sync-monitor-card" class="hidden p-5 rounded-2xl bg-white border border-gray-200/90 shadow-sm space-y-3 transition-all duration-300">
+          <!-- Top Row: Status Dot + State Text + Percentage + Live Timer -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span id="monitor-pulse" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span id="monitor-state" class="text-xs font-bold text-gray-900 tracking-wide uppercase">Initializing Sync...</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="monitor-pct" class="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md tabular-nums">0%</span>
+              <span id="monitor-timer" class="text-xs font-mono font-medium text-gray-500 tabular-nums">00:00s</span>
+            </div>
+          </div>
+
+          <!-- Animated Progress Bar Container -->
+          <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-gray-200/60">
+            <div id="monitor-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out shadow-xs" style="width: 5%"></div>
+          </div>
+
+          <!-- Stage & Job Info -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] font-mono text-gray-500 pt-0.5">
+            <span id="monitor-stage-text" class="text-gray-700 font-medium">Stage 1/4: Dispatching task to queue...</span>
+            <span id="monitor-job-id" class="truncate max-w-[240px] text-gray-400">Job: —</span>
+          </div>
+
+          <!-- Result details / error box -->
+          <div id="monitor-details" class="hidden text-xs pt-2.5 border-t border-gray-100 text-gray-600"></div>
+        </div>
+      </div>
+
+      <!-- Telemetry Ledger Card -->
+      <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
+          <div>
+            <h2 class="text-base font-bold text-gray-900">Telemetry Ledger</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Audit history of recorded pipeline executions.</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-sans">
+            <thead>
+              <tr class="border-b border-gray-200 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                <th class="py-2.5 px-3">Timestamp (WIB)</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Users Staged</th>
+                <th class="py-2.5 px-3">Branches</th>
+                <th class="py-2.5 px-3 text-right">Integrity</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-rows" class="divide-y divide-gray-200/60 text-gray-700 font-mono text-xs">
+              <tr><td colspan="5" class="py-6 text-center text-gray-400 font-sans">Loading audit records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Scheduler Cockpit (5 cols) -->
+    <section class="lg:col-span-5">
+      <div class="rounded-3xl bg-gray-50/70 border border-gray-200/80 p-6 space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
+          <div>
+            <h2 class="text-base font-bold text-gray-900">Scheduler Cockpit</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Configure automated cron syncs.</p>
+          </div>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-white border border-gray-200 text-gray-700 font-semibold">
+            REDIS
+          </span>
+        </div>
+
+        <form id="form-schedule" class="space-y-5">
+          <div class="flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs">
+            <div>
+              <label for="sched-enabled" class="text-xs font-bold text-gray-900 block">Enable Automatic Execution</label>
+              <span class="text-[11px] text-gray-500">Worker polls hourly and triggers at designated time</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="sched-enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+            </label>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider block">Execution Frequency</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center justify-center p-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white transition-all text-xs font-semibold text-gray-700 shadow-xs">
+                <input type="radio" name="schedule_type" value="daily" checked class="sr-only">
+                Daily (Harian)
+              </label>
+              <label class="flex items-center justify-center p-3 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white transition-all text-xs font-semibold text-gray-700 shadow-xs">
+                <input type="radio" name="schedule_type" value="weekly" class="sr-only">
+                Weekly (Mingguan)
+              </label>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label for="sched-hour" class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider">Trigger Hour (WIB)</label>
+              <span class="text-[11px] text-gray-400 font-mono">Jakarta Time</span>
+            </div>
+            <select id="sched-hour" class="w-full px-4 py-2.5 rounded-2xl bg-white border border-gray-200 text-gray-900 text-xs font-medium focus:border-gray-400 focus:outline-none shadow-xs cursor-pointer">
+              <option value="1">01:00 WIB (Midnight - Low Load)</option>
+              <option value="2" selected>02:00 WIB (Recommended - Low Load)</option>
+              <option value="3">03:00 WIB (Low Load)</option>
+              <option value="4">04:00 WIB</option>
+              <option value="5">05:00 WIB</option>
+              <option value="6">06:00 WIB</option>
+              <option value="23">23:00 WIB</option>
+            </select>
+          </div>
+
+          <div id="field-day-of-week" class="space-y-2 hidden">
+            <label for="sched-day" class="text-xs font-bold text-gray-600 uppercase text-[10px] tracking-wider block">Execution Day</label>
+            <select id="sched-day" class="w-full px-4 py-2.5 rounded-2xl bg-white border border-gray-200 text-gray-900 text-xs font-medium focus:border-gray-400 focus:outline-none shadow-xs cursor-pointer">
+              <option value="0">Sunday (Minggu)</option>
+              <option value="1">Monday (Senin)</option>
+              <option value="2">Tuesday (Selasa)</option>
+              <option value="3">Wednesday (Rabu)</option>
+              <option value="4">Thursday (Kamis)</option>
+              <option value="5">Friday (Jumat)</option>
+              <option value="6">Saturday (Sabtu)</option>
+            </select>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white border border-gray-200 text-xs space-y-1 shadow-xs">
+            <div class="text-gray-400 uppercase text-[10px] font-bold">Configured Cron Rule</div>
+            <div id="rule-summary" class="text-gray-900 font-bold">Inactive (Manual Trigger Only)</div>
+            <div class="text-[11px] text-gray-400">Worker timezone: Asia/Jakarta (WIB)</div>
+          </div>
+
+          <button
+            type="submit"
+            id="btn-save-schedule"
+            class="w-full py-3.5 px-4 rounded-2xl bg-gray-900 hover:bg-black active:bg-gray-800 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer">
+            Commit Schedule Configuration
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </div>
+</div>
