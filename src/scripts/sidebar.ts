@@ -53,6 +53,8 @@ export function openMobileSidebar() {
   document.body.classList.add('overflow-hidden', 'lg:overflow-auto');
 }
 
+let globalTabChangeHandler: ((newTab: string) => void) | undefined;
+
 export function initSidebar(onTabChanged?: (newTab: string) => void) {
   const mainSidebar = document.getElementById('main-sidebar');
   const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -100,7 +102,7 @@ export function initSidebar(onTabChanged?: (newTab: string) => void) {
   const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-btn');
   const tabPanes = document.querySelectorAll<HTMLElement>('.tab-pane');
 
-  let globalTabChangeHandler = onTabChanged;
+  globalTabChangeHandler = onTabChanged;
 
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -147,6 +149,11 @@ export function switchTab(tab: string) {
 
   if (window.innerWidth < 1024) {
     closeMobileSidebar();
+  }
+
+  // Invoke tab change listener to load tab data
+  if (globalTabChangeHandler) {
+    globalTabChangeHandler(tab);
   }
 
   // Trigger custom event for tab switch
