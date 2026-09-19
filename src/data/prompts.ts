@@ -400,3 +400,130 @@ Respond STRICTLY in valid JSON format with one key:
 JSON OUTPUT:`
   }
 ];
+
+export const PIPELINE_ASSEMBLY_FRAME = {
+  id: "assembly_frame",
+  tag: "Message Frame",
+  title: "Prompt Assembly Architecture (_build_generate_messages)",
+  actAs: "Message Construction & Prefix Cache Sequence",
+  pipelineStage: "app.graph.pipeline._build_generate_messages",
+  description: "How the graph runtime orders messages for OpenRouter prefix cache reuse on turn 2+.",
+  tokensEst: 450,
+  content: `# Sequence constructed in app/graph/pipeline.py -> _build_generate_messages():
+
+# 1. SystemMessage #1 (Role persona & behavioral laws - Byte-stable prefix anchor)
+msgs = [SystemMessage(content=system_prompt_text)]
+
+# 2. SystemMessage #2 (Authoritative knowledge document filtered by FO vs HO)
+if cag_kb_text:
+    msgs.append(SystemMessage(content=cag_kb_text))
+
+# 3. HumanMessage #3 (Dynamic Tail: user context, LTM profile, STM summary, topic catalog)
+if dynamic_tail:
+    msgs.append(HumanMessage(content=dynamic_tail))
+
+# 4. Windowed Chat History (Recent user/assistant turns bounded by max_fresh_turns & max_history_ai_chars)
+msgs += windowed_messages
+
+# Prefix Cache Result:
+# Messages #1 and #2 remain byte-stable across conversation turns, achieving ~100% prefix cache hits on OpenRouter.`
+};
+
+export const PIPELINE_CONTEXT_BLOCKS: PromptBlock[] = [
+  PIPELINE_ASSEMBLY_FRAME,
+  {
+    id: "user_context",
+    tag: "<user_context>",
+    title: "User Profile & Branch Context Injection",
+    actAs: "Injected User Profile (Drives FO vs HO Tailoring)",
+    description: "Formats employee identity, NIK, role, branch, region, and KPI metrics so the LLM tailors answers directly to their operational realities.",
+    content: `<user_context>
+- Name: Siti Rahmawati
+- Username: 123456
+- Role: BP (Field Office)
+- Point: Cikupa
+- Area: Banten 1
+- Regional: West Java
+- Pulau: Jawa
+- Cakupan: Cabang
+- KPI Repayment Rate: 98.5%
+- KPI PAR: 1.2%
+- KPI DPD 0: 97.8%
+</user_context>`
+  },
+  {
+    id: "user_history",
+    tag: "<user_history>",
+    title: "Long-Term Memory (LTM) Profile Injection",
+    actAs: "Injected Learning History from PostgreSQL",
+    description: "Injects the user's persistent learning summary (Mastered topics vs Needs Practice) from user_ltm_memories table into the conversation.",
+    content: `<user_history>
+Ringkasan progres & konteks belajar user:
+- Mastered: SOP Pencairan Pembiayaan, Validasi Dokumen Mitra
+- Needs Practice: Penanganan Komplain Mitra DPD 30+
+</user_history>`
+  },
+  {
+    id: "previous_context",
+    tag: "<previous_context>",
+    title: "Short-Term Memory (STM) Rolling Dialogue Summary",
+    actAs: "Injected Conversation Memory Summary",
+    description: "Injects rolling summary of earlier conversation turns when dialogue exceeds the fresh turn threshold.",
+    content: `<previous_context>
+- User asked about procedure for rescheduling mitra payment in branch Cikupa.
+- Trainer explained prerequisite: BM approval and verification of DPD status.
+</previous_context>`
+  },
+  {
+    id: "available_topics",
+    tag: "<available_topics>",
+    title: "Available Topics Catalog Injection",
+    actAs: "Injected Module Catalog (Intent: TOPIC_LIST)",
+    description: "Dynamically injected when intent is TOPIC_LIST so the LLM weaves course titles naturally into dialogue without hardcoded lists.",
+    content: `<available_topics>
+- Tentang Amartha
+- Produk Pembiayaan Modal Kerja
+- SOP Operasional Lapangan (FO)
+- Manajemen Risiko Kredit & PAR
+- Service Excellence & Amartha Care
+</available_topics>`
+  },
+  {
+    id: "section_materials",
+    tag: "<section_materials>",
+    title: "Section Drilldown Materials Injection",
+    actAs: "Injected Subtopic Modules (Intent: SECTION_DRILLDOWN)",
+    description: "Dynamically injected when intent is SECTION_DRILLDOWN, listing sub-materials for a specific module.",
+    content: `<section_materials section="SOP Operasional Lapangan">
+- Modul 1: Prosedur Majelis Mingguan (MM)
+- Modul 2: Verifikasi Lapangan Calon Mitra
+- Modul 3: Penagihan dan Penanganan Mitra NPL
+</section_materials>`
+  },
+  {
+    id: "knowledge_base",
+    tag: "<knowledge_base>",
+    title: "Role-Filtered Amarthapedia Knowledge Pack",
+    actAs: "Authoritative Ground Truth Container",
+    description: "The closed-book ground truth for the LLM. Loaded from PostgreSQL active_cag_kb and filtered by user role (FO vs HO). Placed in SystemMessage #2 for OpenRouter prefix cache hit.",
+    content: `<knowledge_base>
+# SOP Penyaluran Pembiayaan
+## 1. Persyaratan Pengajuan Mitra
+Mitra wajib memiliki usaha mikro produktif yang telah berjalan minimal 6 bulan...
+
+## 2. Batas Plafon Awal
+Plafon awal pembiayaan kelompok sebesar Rp 3.000.000 hingga Rp 5.000.000...
+</knowledge_base>`
+  },
+  {
+    id: "knowledge_base_missing",
+    tag: "<knowledge_base_missing>",
+    title: "Missing Knowledge Base Notice",
+    actAs: "Fallback Warning when KB Pack is Empty",
+    description: "Injected if a KNOWLEDGE or COACHING query arrives but the database has no active KB text.",
+    content: `<knowledge_base_missing>
+No active CAG knowledge base pack is available. Ask an admin to run Moodle KB sync first.
+</knowledge_base_missing>`
+  }
+];
+

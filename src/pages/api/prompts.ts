@@ -1,7 +1,7 @@
 // src/pages/api/prompts.ts
 import type { APIRoute } from 'astro';
 import { BACKEND_API_URL, ADMIN_API_KEY } from 'astro:env/server';
-import { PROMPT_BLOCKS, SYSTEM_PROMPTS } from '../../data/prompts';
+import { PROMPT_BLOCKS, SYSTEM_PROMPTS, PIPELINE_CONTEXT_BLOCKS, PIPELINE_ASSEMBLY_FRAME } from '../../data/prompts';
 
 export const GET: APIRoute = async () => {
   const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
@@ -39,6 +39,16 @@ export const GET: APIRoute = async () => {
       total_blocks: PROMPT_BLOCKS.length,
       prompts: SYSTEM_PROMPTS,
       blocks: PROMPT_BLOCKS,
+      prompts_py: {
+        file: 'app/llm/prompts.py',
+        prompts: SYSTEM_PROMPTS,
+        blocks: PROMPT_BLOCKS,
+      },
+      pipeline_py: {
+        file: 'app/graph/pipeline.py',
+        assembly_frame: PIPELINE_ASSEMBLY_FRAME,
+        blocks: PIPELINE_CONTEXT_BLOCKS,
+      },
     }),
     {
       status: 200,
