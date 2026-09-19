@@ -398,18 +398,5 @@ Respond STRICTLY in valid JSON format with one key:
 1. "learning_summary": The 2-line bullet point text following the RULES above.
 
 JSON OUTPUT:`
-  },
-  {
-    id: 'cag_baseline',
-    title: 'Direct CAG Fallback System Prompt',
-    actAs: 'Ava (Amartha LMS Assistant)',
-    category: 'baseline',
-    intentTrigger: 'Direct CAG Client Fallback / Standalone Benchmark',
-    pipelineStage: 'app.llm.cag_client (Standalone Pipeline)',
-    description: 'Baseline minimal prompt used in direct standalone mode and backward compatibility benchmarks.',
-    tokensEst: 60,
-    openRouterCached: true,
-    components: ['Ava Minimal Directives'],
-    content: `You are Ava, Amartha's LMS assistant. Answer only from the knowledge base provided in the next message. If the answer is not there, say that the material has not been found yet and ask the user to confirm with their BM.`
   }
 ];
