@@ -26,9 +26,11 @@ export interface SystemPromptItem {
   components: string[];
 }
 
-let allPrompts: SystemPromptItem[] = [];
-let allBlocks: PromptBlock[] = [];
-let pipelineBlocks: PromptBlock[] = [];
+import { SYSTEM_PROMPTS, PROMPT_BLOCKS, PIPELINE_CONTEXT_BLOCKS } from '../data/prompts';
+
+let allPrompts: SystemPromptItem[] = [...SYSTEM_PROMPTS];
+let allBlocks: PromptBlock[] = [...PROMPT_BLOCKS];
+let pipelineBlocks: PromptBlock[] = [...PIPELINE_CONTEXT_BLOCKS];
 
 let activeSelectionValue = 'conversational';
 let promptSearchQuery = '';
@@ -39,15 +41,22 @@ export async function loadSystemPrompts() {
     const res = await fetch('/api/prompts');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.prompts && data.blocks) {
-      allPrompts = data.prompts;
-      allBlocks = data.blocks;
-      dataSource = data.source || 'backend_live';
-
-      if (data.pipeline_py) {
-        pipelineBlocks = data.pipeline_py.blocks || [];
+    if (data.prompts) {
+      if (typeof data.prompts === 'object' && !Array.isArray(data.prompts)) {
+        allPrompts.forEach(p => {
+          if (data.prompts[p.id]) p.content = data.prompts[p.id];
+        });
+        if (data.blocks && typeof data.blocks === 'object') {
+          allBlocks.forEach(b => {
+            if (data.blocks[b.id]) b.content = data.blocks[b.id];
+          });
+        }
+      } else if (Array.isArray(data.prompts)) {
+        allPrompts = data.prompts;
+        if (Array.isArray(data.blocks)) allBlocks = data.blocks;
       }
 
+      dataSource = data.source || 'backend_live';
       updateSourceBadge();
       renderSelectedContent();
       return;
