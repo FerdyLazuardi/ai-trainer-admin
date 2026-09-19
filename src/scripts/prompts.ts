@@ -78,13 +78,13 @@ function populateDropdown(source: 'prompts_py' | 'pipeline_py') {
   select.innerHTML = '';
 
   if (source === 'prompts_py') {
-    // 1. Awalnya: Semua prompt dimasukkan jadi satu tanpa dipisah
+    // 1. Initial option: All prompts combined without separation
     const optAll = document.createElement('option');
     optAll.value = 'all_prompts';
-    optAll.textContent = 'All Prompts (Semua Jadi Satu)';
+    optAll.textContent = 'All Prompts (Full / Unsplit)';
     select.appendChild(optAll);
 
-    // 2. Hanya Modular XML Blocks
+    // 2. Modular XML Blocks only
     const grpBlocks = document.createElement('optgroup');
     grpBlocks.label = 'Modular XML Blocks (prompts.py)';
     allBlocks.forEach(b => {
@@ -95,10 +95,10 @@ function populateDropdown(source: 'prompts_py' | 'pipeline_py') {
     });
     select.appendChild(grpBlocks);
   } else {
-    // 1. Awalnya: Semua pipeline context dimasukkan jadi satu tanpa dipisah
+    // 1. Initial option: All pipeline context combined without separation
     const optAll = document.createElement('option');
     optAll.value = 'pipeline:all';
-    optAll.textContent = 'All Pipeline Context (Semua Jadi Satu)';
+    optAll.textContent = 'All Pipeline Context (Full / Unsplit)';
     select.appendChild(optAll);
 
     // 2. Hanya Modular Blocks
@@ -154,7 +154,7 @@ function getActiveItem(): {
     const combined = getAllPromptsCombinedContent();
     return {
       title: 'All System Prompts (Full / Unsplit)',
-      desc: 'Semua modular XML block prompt digabung menjadi satu tanpa dipisah (app/llm/prompts.py)',
+      desc: 'All modular XML prompt blocks combined without separation (app/llm/prompts.py)',
       actAs: 'Senior Learning & Development Trainer at Amartha (Digital Learning Team)',
       tokens: `~${Math.round(combined.length / 4)} tok`,
       cache: 'Byte-stable Prefix Cacheable',
@@ -168,7 +168,7 @@ function getActiveItem(): {
     const combined = getAllPipelineCombinedContent();
     return {
       title: 'All Pipeline Context & Architecture (Full / Unsplit)',
-      desc: 'Semua frame arsitektur dan modular runtime injected blocks digabung menjadi satu (app/graph/pipeline.py)',
+      desc: 'Complete message frame architecture and runtime injected XML blocks combined (app/graph/pipeline.py)',
       actAs: 'Pipeline Graph Context Orchestrator',
       tokens: `~${Math.round(combined.length / 4)} tok`,
       cache: 'Hybrid (Prefix Cache + Dynamic Tail)',
@@ -216,7 +216,6 @@ function getActiveItem(): {
 function renderSelectedContent() {
   const viewerTitle = document.getElementById('min-viewer-title');
   const viewerDesc = document.getElementById('min-viewer-desc');
-  const viewerActAs = document.getElementById('min-viewer-act-as');
   const viewerTokens = document.getElementById('min-viewer-tokens');
   const viewerCache = document.getElementById('min-viewer-cache');
   const viewerStage = document.getElementById('min-viewer-stage');
@@ -228,7 +227,6 @@ function renderSelectedContent() {
 
   if (viewerTitle) viewerTitle.innerText = item.title;
   if (viewerDesc) viewerDesc.innerText = item.desc;
-  if (viewerActAs) viewerActAs.innerText = item.actAs;
   if (viewerTokens) viewerTokens.innerText = item.tokens;
   if (viewerCache) viewerCache.innerText = item.cache;
   if (viewerStage) viewerStage.innerText = item.stage;
