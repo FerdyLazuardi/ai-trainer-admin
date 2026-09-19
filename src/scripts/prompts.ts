@@ -1,5 +1,5 @@
 // src/scripts/prompts.ts
-import { notify, escapeHtml } from './utils';
+import { notify } from './utils';
 
 export interface PromptBlock {
   id: string;
@@ -12,51 +12,39 @@ export interface PromptBlock {
   pipelineStage?: string;
 }
 
-export interface SystemPromptItem {
-  id: string;
-  title: string;
-  actAs: string;
-  category: 'core_generation' | 'memory_summarization' | 'baseline';
-  intentTrigger: string;
-  description: string;
-  pipelineStage: string;
-  tokensEst: number;
-  openRouterCached: boolean;
-  content: string;
-  components: string[];
-}
+import { PROMPT_BLOCKS, PIPELINE_CONTEXT_BLOCKS } from '../data/prompts';
 
-import { SYSTEM_PROMPTS, PROMPT_BLOCKS, PIPELINE_CONTEXT_BLOCKS } from '../data/prompts';
-
-let allPrompts: SystemPromptItem[] = [...SYSTEM_PROMPTS];
 let allBlocks: PromptBlock[] = [...PROMPT_BLOCKS];
 let pipelineBlocks: PromptBlock[] = [...PIPELINE_CONTEXT_BLOCKS];
 
 let activeSource: 'prompts_py' | 'pipeline_py' = 'prompts_py';
-let activeSelectionValue = 'conversational';
+let activeSelectionValue = 'all_prompts';
 let dataSource = 'backend_live';
+
+function getAllPromptsCombinedContent(): string {
+  return allBlocks.map(b => b.content).join('\n\n');
+}
+
+function getAllPipelineCombinedContent(): string {
+  return pipelineBlocks.map(b => b.content).join('\n\n');
+}
 
 export async function loadSystemPrompts() {
   try {
     const res = await fetch('/api/prompts');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.prompts) {
-      if (typeof data.prompts === 'object' && !Array.isArray(data.prompts)) {
-        allPrompts.forEach(p => {
-          if (data.prompts[p.id]) p.content = data.prompts[p.id];
-          else if (p.id === 'chit_chat' && data.prompts['chitchat']) p.content = data.prompts['chitchat'];
-          else if (p.id === 'stm_summary' && data.prompts['stm_summarizer']) p.content = data.prompts['stm_summarizer'];
-          else if (p.id === 'ltm_summary' && data.prompts['ltm_summarizer']) p.content = data.prompts['ltm_summarizer'];
+    if (data.blocks || data.prompts) {
+      if (data.blocks && typeof data.blocks === 'object') {
+        allBlocks.forEach(b => {
+          if (data.blocks[b.id]) {
+            b.content = data.blocks[b.id];
+          } else if (b.id === 'socratic_mode' && data.blocks['mode']) {
+            b.content = data.blocks['mode'];
+          } else if (b.id === 'disambig' && data.blocks['disambiguate']) {
+            b.content = data.blocks['disambiguate'];
+          }
         });
-        if (data.blocks && typeof data.blocks === 'object') {
-          allBlocks.forEach(b => {
-            if (data.blocks[b.id]) b.content = data.blocks[b.id];
-          });
-        }
-      } else if (Array.isArray(data.prompts)) {
-        allPrompts = data.prompts;
-        if (Array.isArray(data.blocks)) allBlocks = data.blocks;
       }
 
       dataSource = data.source || 'backend_live';
@@ -90,18 +78,13 @@ function populateDropdown(source: 'prompts_py' | 'pipeline_py') {
   select.innerHTML = '';
 
   if (source === 'prompts_py') {
-    // 1. Assembled Prompts group
-    const grpPrompts = document.createElement('optgroup');
-    grpPrompts.label = 'Assembled Prompts';
-    allPrompts.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.title;
-      grpPrompts.appendChild(opt);
-    });
-    select.appendChild(grpPrompts);
+    // 1. Awalnya: Semua prompt dimasukkan jadi satu tanpa dipisah
+    const optAll = document.createElement('option');
+    optAll.value = 'all_prompts';
+    optAll.textContent = 'All Prompts (Semua Jadi Satu)';
+    select.appendChild(optAll);
 
-    // 2. Modular XML Blocks group
+    // 2. Hanya Modular XML Blocks
     const grpBlocks = document.createElement('optgroup');
     grpBlocks.label = 'Modular XML Blocks (prompts.py)';
     allBlocks.forEach(b => {
@@ -112,24 +95,22 @@ function populateDropdown(source: 'prompts_py' | 'pipeline_py') {
     });
     select.appendChild(grpBlocks);
   } else {
-    // Pipeline.py items
-    const grpArch = document.createElement('optgroup');
-    grpArch.label = 'Pipeline Architecture';
-    const optFrame = document.createElement('option');
-    optFrame.value = 'pipeline:assembly_frame';
-    optFrame.textContent = 'Message Frame Architecture';
-    grpArch.appendChild(optFrame);
-    select.appendChild(grpArch);
+    // 1. Awalnya: Semua pipeline context dimasukkan jadi satu tanpa dipisah
+    const optAll = document.createElement('option');
+    optAll.value = 'pipeline:all';
+    optAll.textContent = 'All Pipeline Context (Semua Jadi Satu)';
+    select.appendChild(optAll);
 
-    const grpRuntime = document.createElement('optgroup');
-    grpRuntime.label = 'Runtime Injected Blocks (pipeline.py)';
-    pipelineBlocks.filter(b => b.id !== 'assembly_frame').forEach(b => {
+    // 2. Hanya Modular Blocks
+    const grpBlocks = document.createElement('optgroup');
+    grpBlocks.label = 'Modular Blocks (pipeline.py)';
+    pipelineBlocks.forEach(b => {
       const opt = document.createElement('option');
       opt.value = `pipeline:${b.id}`;
-      opt.textContent = `${b.tag} ${b.title}`;
-      grpRuntime.appendChild(opt);
+      opt.textContent = `${b.tag ? `${b.tag} ` : ''}${b.title}`;
+      grpBlocks.appendChild(opt);
     });
-    select.appendChild(grpRuntime);
+    select.appendChild(grpBlocks);
   }
 
   // Set selected value
@@ -146,13 +127,13 @@ function switchSource(source: 'prompts_py' | 'pipeline_py') {
     btnPrompts?.classList.remove('text-gray-500', 'font-semibold');
     btnPipeline?.classList.remove('active', 'bg-white', 'text-gray-900', 'shadow-xs', 'font-bold');
     btnPipeline?.classList.add('text-gray-500', 'font-semibold');
-    activeSelectionValue = 'conversational';
+    activeSelectionValue = 'all_prompts';
   } else {
     btnPipeline?.classList.add('active', 'bg-white', 'text-gray-900', 'shadow-xs', 'font-bold');
     btnPipeline?.classList.remove('text-gray-500', 'font-semibold');
     btnPrompts?.classList.remove('active', 'bg-white', 'text-gray-900', 'shadow-xs', 'font-bold');
     btnPrompts?.classList.add('text-gray-500', 'font-semibold');
-    activeSelectionValue = 'pipeline:assembly_frame';
+    activeSelectionValue = 'pipeline:all';
   }
 
   populateDropdown(source);
@@ -169,18 +150,46 @@ function getActiveItem(): {
   trigger: string;
   content: string;
 } | null {
+  if (activeSelectionValue === 'all_prompts') {
+    const combined = getAllPromptsCombinedContent();
+    return {
+      title: 'All System Prompts (Full / Unsplit)',
+      desc: 'Semua modular XML block prompt digabung menjadi satu tanpa dipisah (app/llm/prompts.py)',
+      actAs: 'Senior Learning & Development Trainer at Amartha (Digital Learning Team)',
+      tokens: `~${Math.round(combined.length / 4)} tok`,
+      cache: 'Byte-stable Prefix Cacheable',
+      stage: 'app.llm.prompts (Full System Prompt)',
+      trigger: 'Core Generation & Coaching Workflows',
+      content: combined,
+    };
+  }
+
+  if (activeSelectionValue === 'pipeline:all') {
+    const combined = getAllPipelineCombinedContent();
+    return {
+      title: 'All Pipeline Context & Architecture (Full / Unsplit)',
+      desc: 'Semua frame arsitektur dan modular runtime injected blocks digabung menjadi satu (app/graph/pipeline.py)',
+      actAs: 'Pipeline Graph Context Orchestrator',
+      tokens: `~${Math.round(combined.length / 4)} tok`,
+      cache: 'Hybrid (Prefix Cache + Dynamic Tail)',
+      stage: 'app.graph.pipeline._build_generate_messages',
+      trigger: 'Every User Turn & Routing Intents',
+      content: combined,
+    };
+  }
+
   if (activeSelectionValue.startsWith('block:')) {
     const blockId = activeSelectionValue.replace('block:', '');
     const blk = allBlocks.find(b => b.id === blockId) || allBlocks[0];
     if (!blk) return null;
     return {
-      title: `${blk.title} (${blk.tag})`,
+      title: `${blk.tag} ${blk.title}`,
       desc: blk.description,
       actAs: blk.actAs,
       tokens: `~${Math.round(blk.content.length / 4)} tok`,
       cache: 'Byte-stable Prefix',
       stage: 'Modular XML Block (prompts.py)',
-      trigger: 'Assembled into Conversational & Socratic Prompts',
+      trigger: 'Assembled into System Prompts',
       content: blk.content,
     };
   }
@@ -190,7 +199,7 @@ function getActiveItem(): {
     const p = pipelineBlocks.find(b => b.id === pipeId) || pipelineBlocks[0];
     if (!p) return null;
     return {
-      title: `${p.title} (${p.tag})`,
+      title: `${p.tag ? `${p.tag} ` : ''}${p.title}`,
       desc: p.description,
       actAs: p.actAs || 'Runtime Injected Context Template',
       tokens: p.tokensEst ? `~${p.tokensEst} tok` : `~${Math.round(p.content.length / 4)} tok`,
@@ -201,19 +210,7 @@ function getActiveItem(): {
     };
   }
 
-  // Regular prompt
-  const pr = allPrompts.find(p => p.id === activeSelectionValue) || allPrompts[0];
-  if (!pr) return null;
-  return {
-    title: pr.title,
-    desc: pr.description,
-    actAs: pr.actAs,
-    tokens: `~${pr.tokensEst} tok`,
-    cache: pr.openRouterCached ? 'Prefix Cacheable' : 'Turn Dynamic',
-    stage: pr.pipelineStage,
-    trigger: pr.intentTrigger,
-    content: pr.content,
-  };
+  return null;
 }
 
 function renderSelectedContent() {
@@ -240,7 +237,8 @@ function renderSelectedContent() {
 }
 
 export function initPromptsTab() {
-  // 1. Initial dropdown population
+  // 1. Initial dropdown population (default: All in One)
+  activeSelectionValue = 'all_prompts';
   populateDropdown('prompts_py');
   renderSelectedContent();
   loadSystemPrompts();
@@ -285,15 +283,16 @@ export function initPromptsTab() {
 
       // Check deep content
       let itemContent = '';
-      if (opt.value.startsWith('block:')) {
+      if (opt.value === 'all_prompts') {
+        itemContent = getAllPromptsCombinedContent().toLowerCase();
+      } else if (opt.value === 'pipeline:all') {
+        itemContent = getAllPipelineCombinedContent().toLowerCase();
+      } else if (opt.value.startsWith('block:')) {
         const blk = allBlocks.find(b => b.id === opt.value.replace('block:', ''));
         if (blk) itemContent = `${blk.description} ${blk.actAs} ${blk.content}`.toLowerCase();
       } else if (opt.value.startsWith('pipeline:')) {
         const p = pipelineBlocks.find(b => b.id === opt.value.replace('pipeline:', ''));
         if (p) itemContent = `${p.description} ${p.actAs} ${p.content}`.toLowerCase();
-      } else {
-        const pr = allPrompts.find(p => p.id === opt.value);
-        if (pr) itemContent = `${pr.description} ${pr.actAs} ${pr.content}`.toLowerCase();
       }
 
       if (itemContent.includes(q)) {
