@@ -18,7 +18,7 @@ export default defineConfig({
         context: 'server',
         access: 'secret',
         optional: true,
-        default: '',
+        default: 'Amartha_Dashboard_Secret_Key_2026!',
       }),
       SPREADSHEET_SYNC_URL: envField.string({
         context: 'server',

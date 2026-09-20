@@ -4,8 +4,8 @@ import { BACKEND_API_URL, ADMIN_API_KEY } from 'astro:env/server';
 import { PROMPT_BLOCKS, SYSTEM_PROMPTS, PIPELINE_CONTEXT_BLOCKS, PIPELINE_ASSEMBLY_FRAME } from '../../data/prompts';
 
 export const GET: APIRoute = async () => {
-  const backendUrl = BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1';
-  const adminKey = ADMIN_API_KEY || '';
+  const backendUrl = (BACKEND_API_URL || 'https://ai-trainer.lifeatamartha.com/api/v1').replace(/\/+$/, '');
+  const adminKey = ADMIN_API_KEY || 'Amartha_Dashboard_Secret_Key_2026!';
 
   // 1. Attempt dynamic live fetch from cag-lms-agent backend
   try {
@@ -13,7 +13,6 @@ export const GET: APIRoute = async () => {
       headers: {
         'X-API-Key': adminKey,
       },
-      signal: AbortSignal.timeout(4000),
     });
 
     if (res.ok) {
@@ -22,12 +21,14 @@ export const GET: APIRoute = async () => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=60',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
         },
       });
+    } else {
+      console.warn(`Backend /admin/prompts returned status ${res.status}`);
     }
   } catch (err) {
-    console.warn('Backend /admin/prompts fetch failed or timed out, using local fallback:', err);
+    console.warn('Backend /admin/prompts fetch failed:', err);
   }
 
   // 2. Fallback to local snapshot if backend is offline/unreachable
@@ -54,7 +55,7 @@ export const GET: APIRoute = async () => {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     }
   );
