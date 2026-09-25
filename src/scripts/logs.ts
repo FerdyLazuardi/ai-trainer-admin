@@ -78,72 +78,158 @@ export function getIntentBadge(intentName: string): string {
   `;
 }
 
-export function parseSessionUser(sessionId: string) {
-  if (!sessionId || sessionId === 'Unknown' || sessionId === 'dev_user_123') {
-    return { name: 'Admin / Dev', role: 'HQ Operator', id: 'dev', location: '', raw: sessionId || '—' };
-  }
-  const parts = sessionId.split('_');
-  if (parts.length <= 1) {
-    return { name: sessionId, role: 'Employee', id: sessionId, location: '', raw: sessionId };
-  }
+interface GeoInfo {
+  point: string;
+  area: string;
+  regional: string;
+  pulau: string;
+}
 
-  const id = parts[0];
-  const roleMarkers = ['fo', 'ho', 'admin', 'bm', 'bp', 'am', 'area', 'manager', 'staff', 'lead', 'business', 'officer'];
-  
-  let markerIdx = -1;
-  for (let i = 1; i < parts.length; i++) {
-    if (roleMarkers.includes(parts[i].toLowerCase())) {
-      markerIdx = i;
-      break;
-    }
+const branchGeoMap = new Map<string, GeoInfo>();
+let branchGeoPromise: Promise<void> | null = null;
+
+function normGeoKey(s: string): string {
+  return (s || '').toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function extractGeoFromRow(obj: any): GeoInfo {
+  const out: GeoInfo = { point: '', area: '', regional: '', pulau: '' };
+  if (!obj || typeof obj !== 'object') return out;
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined || v === '') continue;
+    const kl = k.toLowerCase().trim();
+    const vs = String(v).trim();
+    if (!vs) continue;
+    if ((kl === 'point' || kl === 'cabang') && !out.point) out.point = vs;
+    else if ((kl === 'area' || kl === 'wilayah') && !out.area) out.area = vs;
+    else if ((kl === 'regional' || kl === 'region') && !out.regional) out.regional = vs;
+    else if ((kl === 'pulau' || kl === 'island') && !out.pulau) out.pulau = vs;
   }
+  return out;
+}
 
-  let name = '';
-  let roleTokens: string[] = [];
-  let locationTokens: string[] = [];
-
-  if (markerIdx > 1) {
-    name = parts.slice(1, markerIdx).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
-    const remainder = parts.slice(markerIdx).filter(s => s.toLowerCase() !== 'n/a' && s.toLowerCase() !== 'na');
-    
-    const roleTerminalWords = ['manager', 'partner', 'officer', 'leader', 'staff', 'admin', 'coordinator', 'specialist', 'analyst', 'head', 'lead'];
-    let terminalIdx = -1;
-    for (let j = 0; j < remainder.length; j++) {
-      if (roleTerminalWords.includes(remainder[j].toLowerCase())) {
-        terminalIdx = j;
-        break;
+async function ensureBranchGeoLoaded(): Promise<void> {
+  if (branchGeoMap.size > 0) return;
+  if (branchGeoPromise) return branchGeoPromise;
+  branchGeoPromise = (async () => {
+    try {
+      for (let page = 1; page <= 6; page++) {
+        const res = await fetch(`/api/kpi?scope=branches&page=${page}&limit=200`);
+        if (!res.ok) break;
+        const data = await res.json();
+        const branches = data.branches || (Array.isArray(data) ? data : []);
+        if (!Array.isArray(branches) || branches.length === 0) break;
+        for (const b of branches) {
+          const geo = extractGeoFromRow(b);
+          const pt = String(b.point || b.nama_cabang || geo.point || '').trim();
+          const key = normGeoKey(pt);
+          if (key) {
+            branchGeoMap.set(key, {
+              point: pt || geo.point,
+              area: geo.area,
+              regional: geo.regional,
+              pulau: geo.pulau,
+            });
+          }
+        }
+        if (branches.length < 200) break;
       }
+    } catch (e) {
+      console.warn('Branch geo fallback load skipped:', e);
     }
+  })();
+  return branchGeoPromise;
+}
 
-    if (terminalIdx !== -1) {
-      roleTokens = remainder.slice(0, terminalIdx + 1);
-      locationTokens = remainder.slice(terminalIdx + 1);
-    } else {
-      roleTokens = remainder.slice(0, 3);
-      locationTokens = remainder.slice(3);
-    }
-  } else if (markerIdx === 1) {
-    name = parts.slice(1).filter(s => s.toLowerCase() !== 'na').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || `User #${id}`;
-    roleTokens = ['Staff'];
+export function parseSessionUser(sessionId: string, row?: any) {
+  let id = 'dev';
+  let parsedName = '';
+  let parsedRole = '';
+  let parsedLocation = '';
+
+  if (!sessionId || sessionId === 'Unknown' || sessionId === 'dev_user_123') {
+    parsedName = 'Admin / Dev';
+    parsedRole = 'HQ Operator';
   } else {
-    name = parts.slice(1).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
-    roleTokens = ['Employee'];
+    const parts = sessionId.split('_');
+    if (parts.length <= 1) {
+      id = sessionId;
+      parsedName = sessionId;
+      parsedRole = 'Employee';
+    } else {
+      id = parts[0];
+      const roleMarkers = ['fo', 'ho', 'admin', 'bm', 'bp', 'am', 'rm', 'hmb', 'area', 'manager', 'staff', 'lead', 'business', 'officer'];
+
+      let markerIdx = -1;
+      for (let i = 1; i < parts.length; i++) {
+        if (roleMarkers.includes(parts[i].toLowerCase())) {
+          markerIdx = i;
+          break;
+        }
+      }
+
+      let roleTokens: string[] = [];
+      let locationTokens: string[] = [];
+
+      if (markerIdx > 1) {
+        parsedName = parts.slice(1, markerIdx).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        const remainder = parts.slice(markerIdx).filter(s => s.toLowerCase() !== 'n/a' && s.toLowerCase() !== 'na');
+
+        const roleTerminalWords = ['manager', 'partner', 'officer', 'leader', 'staff', 'admin', 'coordinator', 'specialist', 'analyst', 'head', 'lead', 'trainee'];
+        let terminalIdx = -1;
+        for (let j = 0; j < remainder.length; j++) {
+          if (roleTerminalWords.includes(remainder[j].toLowerCase())) {
+            terminalIdx = j;
+            break;
+          }
+        }
+
+        if (terminalIdx !== -1) {
+          roleTokens = remainder.slice(0, terminalIdx + 1);
+          locationTokens = remainder.slice(terminalIdx + 1);
+        } else {
+          roleTokens = remainder.slice(0, 3);
+          locationTokens = remainder.slice(3);
+        }
+      } else if (markerIdx === 1) {
+        parsedName = parts.slice(1).filter(s => s.toLowerCase() !== 'na').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || `User #${id}`;
+        roleTokens = ['Staff'];
+      } else {
+        parsedName = parts.slice(1).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        roleTokens = ['Employee'];
+      }
+
+      parsedRole = roleTokens.map(s => {
+        const lower = s.toLowerCase();
+        if (['fo', 'ho', 'bm', 'bp', 'am', 'rm', 'hmb'].includes(lower)) return lower.toUpperCase();
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      }).join(' ');
+
+      parsedLocation = locationTokens.map(s => s.toUpperCase()).join(' ');
+    }
   }
 
-  const formattedRole = roleTokens.map(s => {
-    const lower = s.toLowerCase();
-    if (lower === 'fo' || lower === 'ho' || lower === 'bm' || lower === 'bp' || lower === 'am') return lower.toUpperCase();
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }).join(' ');
+  const finalPoint = String(row?.point || parsedLocation || '').trim();
+  const branchGeo = finalPoint ? branchGeoMap.get(normGeoKey(finalPoint)) : undefined;
 
-  const formattedLocation = locationTokens.map(s => s.toUpperCase()).join(' ');
+  const finalName = String(row?.full_name || parsedName || `User #${id}`).trim();
+  const finalRole = String(row?.position || parsedRole || 'Field Staff').trim();
+  const finalArea = String(row?.area || branchGeo?.area || '').trim();
+  const finalRegional = String(row?.regional || branchGeo?.regional || '').trim();
+  const finalPulau = String(row?.pulau || branchGeo?.pulau || '').trim();
+  const finalUsername = String(row?.username || '').trim();
 
   return {
-    name: name || `User #${id}`,
-    role: formattedRole || 'Field Staff',
-    location: formattedLocation || '',
+    name: finalName,
+    role: finalRole,
+    location: finalPoint || branchGeo?.point || '',
+    point: finalPoint || branchGeo?.point || '',
+    area: finalArea,
+    regional: finalRegional,
+    pulau: finalPulau,
+    username: finalUsername,
     id: id,
-    raw: sessionId,
+    raw: sessionId || '—',
   };
 }
 
@@ -262,7 +348,10 @@ export async function loadChatLogs() {
     if (chatLogsRows) {
       chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">Loading chat logs from FastAPI backend...</td></tr>`;
     }
-    const res = await fetch('/api/logs?limit=500');
+    const [res] = await Promise.all([
+      fetch('/api/logs?limit=500'),
+      ensureBranchGeoLoaded(),
+    ]);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -338,10 +427,36 @@ export async function loadChatLogs() {
   }
 }
 
-export function renderChatLogsTable() {
-  const chatLogsRows = document.getElementById('chat-logs-rows');
+function getFilteredLogs(): any[] {
   const logSearchInput = document.getElementById('log-search-input') as HTMLInputElement | null;
   const logIntentFilter = document.getElementById('log-intent-filter') as HTMLSelectElement | null;
+  const q = (logSearchInput?.value || '').toLowerCase().trim();
+  const intentFilter = logIntentFilter?.value || 'ALL';
+
+  return rawChatLogs.filter(row => {
+    if (intentFilter !== 'ALL' && row.intent !== intentFilter) return false;
+    if (q) {
+      const user = parseSessionUser(row.session_id, row);
+      const hay = [
+        row.query || '',
+        row.session_id || '',
+        row.answer || '',
+        user.name,
+        user.role,
+        user.point,
+        user.area,
+        user.regional,
+        user.pulau,
+        user.username,
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+export function renderChatLogsTable() {
+  const chatLogsRows = document.getElementById('chat-logs-rows');
   const logPageIndicator = document.getElementById('log-page-indicator');
   const logCurrentPage = document.getElementById('log-current-page');
   const btnLogPrev = document.getElementById('btn-log-prev') as HTMLButtonElement | null;
@@ -349,19 +464,7 @@ export function renderChatLogsTable() {
 
   if (!chatLogsRows) return;
 
-  const q = (logSearchInput?.value || '').toLowerCase().trim();
-  const intentFilter = logIntentFilter?.value || 'ALL';
-
-  const filtered = rawChatLogs.filter(row => {
-    if (intentFilter !== 'ALL' && row.intent !== intentFilter) return false;
-    if (q) {
-      const queryMatch = (row.query || '').toLowerCase().includes(q);
-      const sessionMatch = (row.session_id || '').toLowerCase().includes(q);
-      const answerMatch = (row.answer || '').toLowerCase().includes(q);
-      if (!queryMatch && !sessionMatch && !answerMatch) return false;
-    }
-    return true;
-  });
+  const filtered = getFilteredLogs();
 
   const totalRecords = filtered.length;
   if (totalRecords === 0) {
@@ -390,9 +493,11 @@ export function renderChatLogsTable() {
 
   chatLogsRows.innerHTML = pageRows.map((row, relativeIdx) => {
     const globalIdx = startIdx + relativeIdx;
-    const user = parseSessionUser(row.session_id);
+    const user = parseSessionUser(row.session_id, row);
     const costIdr = Math.round((row.cost || 0) * USD_TO_IDR);
     const latSec = ((row.latency_ms || 0) / 1000).toFixed(2);
+    const geoParts = [user.point, user.area, user.regional].filter(Boolean);
+    const geoSummary = geoParts.join(' • ');
 
     return `
       <tr data-log-index="${globalIdx}" class="chat-log-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
@@ -400,12 +505,13 @@ export function renderChatLogsTable() {
           ${formatTimeNumeric(row.created_at)}
         </td>
         <td class="py-3 px-4">
-          <div class="font-bold text-gray-900 truncate max-w-[170px]" title="${escapeHtml(row.session_id || '')}">${escapeHtml(user.name)}</div>
-          <div class="mt-0.5">
-            <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px] whitespace-nowrap truncate max-w-[170px]">
+          <div class="font-bold text-gray-900 truncate max-w-[190px]" title="${escapeHtml(row.session_id || '')}">${escapeHtml(user.name)}</div>
+          <div class="mt-0.5 flex flex-wrap items-center gap-1">
+            <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px] whitespace-nowrap truncate max-w-[180px]">
               ${escapeHtml(user.role)}
             </span>
           </div>
+          ${geoSummary ? `<div class="mt-1 text-[10px] text-gray-500 truncate max-w-[190px]" title="${escapeHtml([user.point, user.area, user.regional, user.pulau].filter(Boolean).join(' • '))}">${escapeHtml(geoSummary)}</div>` : ''}
         </td>
         <td class="py-3 px-4 max-w-xs sm:max-w-md md:max-w-lg min-w-0">
           <div class="font-semibold text-gray-900 text-xs truncate" title="${escapeHtml(row.query || '—')}">${escapeHtml(row.query || '—')}</div>
@@ -434,7 +540,7 @@ export function renderChatLogsTable() {
       const row = filtered[idx];
       if (!row) return;
 
-      const user = parseSessionUser(row.session_id);
+      const user = parseSessionUser(row.session_id, row);
       const contentHtml = `
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -448,12 +554,18 @@ export function renderChatLogsTable() {
           <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-2.5 text-xs font-sans">
             <div class="flex items-center justify-between pb-1.5 border-b border-gray-200/60">
               <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">User Identity & Session</span>
-              <span class="px-2 py-0.5 rounded-md bg-gray-200 text-gray-800 font-mono text-[10px] font-bold">User ID: ${escapeHtml(user.id)}</span>
+              <div class="flex items-center gap-1.5">
+                ${user.username ? `<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/70 font-mono text-[10px] font-bold">NIK: ${escapeHtml(user.username)}</span>` : ''}
+                <span class="px-2 py-0.5 rounded-md bg-gray-200 text-gray-800 font-mono text-[10px] font-bold">User ID: ${escapeHtml(user.id)}</span>
+              </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700">
               <div><span class="text-gray-400">Full Name:</span> <strong class="text-gray-900 ml-1">${escapeHtml(user.name)}</strong></div>
               <div><span class="text-gray-400">Position:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.role)}</span></div>
-              ${user.location ? `<div><span class="text-gray-400">Branch Point:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.location)}</span></div>` : ''}
+              <div><span class="text-gray-400">Branch Point:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.point || '—')}</span></div>
+              <div><span class="text-gray-400">Area:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.area || '—')}</span></div>
+              <div><span class="text-gray-400">Regional:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.regional || '—')}</span></div>
+              <div><span class="text-gray-400">Pulau:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.pulau || '—')}</span></div>
             </div>
             <div class="pt-1.5 border-t border-gray-200/60">
               <div class="text-[10px] text-gray-400 font-mono mb-1 uppercase tracking-wider">Full Session ID:</div>
@@ -493,7 +605,7 @@ function getGroupedSessions() {
   groups.forEach((turns, sId) => {
     turns.sort((a: any, b: any) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
     const latestTurn = turns[turns.length - 1];
-    const user = parseSessionUser(sId);
+    const user = parseSessionUser(sId, latestTurn);
     sessionList.push({
       sessionId: sId,
       user,
@@ -517,10 +629,17 @@ export function renderSessionExplorer() {
 
   const filtered = sessions.filter(s => {
     if (!q) return true;
-    const matchId = s.sessionId.toLowerCase().includes(q);
-    const matchName = s.user.name.toLowerCase().includes(q);
-    const matchRole = s.user.role.toLowerCase().includes(q);
-    return matchId || matchName || matchRole;
+    const hay = [
+      s.sessionId,
+      s.user.name,
+      s.user.role,
+      s.user.point,
+      s.user.area,
+      s.user.regional,
+      s.user.pulau,
+      s.user.username,
+    ].join(' ').toLowerCase();
+    return hay.includes(q);
   });
 
   if (filtered.length === 0) {
@@ -528,15 +647,19 @@ export function renderSessionExplorer() {
     return;
   }
 
-  sessionSummaryRows.innerHTML = filtered.map((s, idx) => `
+  sessionSummaryRows.innerHTML = filtered.map((s, idx) => {
+    const geoParts = [s.user.point, s.user.area, s.user.regional, s.user.pulau].filter(Boolean);
+    const geoText = geoParts.join(' • ');
+    return `
     <tr data-session-idx="${idx}" class="session-summary-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
       <td class="py-3 px-4">
         <div class="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">${escapeHtml(s.user.name)}</div>
-        <div class="mt-0.5">
+        <div class="mt-0.5 flex flex-wrap items-center gap-1">
           <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium text-[10px]">
             ${escapeHtml(s.user.role)}
           </span>
         </div>
+        ${geoText ? `<div class="mt-1 text-[10px] text-gray-500">${escapeHtml(geoText)}</div>` : ''}
       </td>
       <td class="py-3 px-4 font-mono text-gray-500 text-xs truncate max-w-[220px]" title="${escapeHtml(s.sessionId)}">
         ${escapeHtml(s.sessionId)}
@@ -555,7 +678,7 @@ export function renderSessionExplorer() {
         </button>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 
   document.querySelectorAll('.session-summary-row').forEach(tr => {
     tr.addEventListener('click', () => {
@@ -574,8 +697,21 @@ function openSessionThread(sessionGroup: any) {
 
   if (!sessionGroup || !threadModal || !threadSessionTitle || !threadSessionSubtitle || !threadMessagesList) return;
 
-  threadSessionTitle.innerText = `${sessionGroup.user.name} (${sessionGroup.user.role})`;
-  threadSessionSubtitle.innerText = `Session ID: ${sessionGroup.sessionId} • ${sessionGroup.turnsCount} turns • Latest: ${formatTimeNumeric(sessionGroup.latestActivity)}`;
+  const u = sessionGroup.user;
+  const geoLine = [
+    u.point ? `Point: ${u.point}` : '',
+    u.area ? `Area: ${u.area}` : '',
+    u.regional ? `Regional: ${u.regional}` : '',
+    u.pulau ? `Pulau: ${u.pulau}` : '',
+  ].filter(Boolean).join(' • ');
+
+  threadSessionTitle.innerText = `${u.name} (${u.role})`;
+  threadSessionSubtitle.innerText = [
+    geoLine,
+    `Session ID: ${sessionGroup.sessionId}`,
+    `${sessionGroup.turnsCount} turns`,
+    `Latest: ${formatTimeNumeric(sessionGroup.latestActivity)}`,
+  ].filter(Boolean).join(' • ');
 
   threadMessagesList.innerHTML = sessionGroup.turns.map((turn: any, idx: number) => `
     <div class="space-y-3 pb-4 border-b border-gray-200/50 last:border-0">
@@ -640,9 +776,66 @@ export function renderLTMTable() {
   `).join('');
 }
 
+function exportFilteredLogsToCsv() {
+  const rows = getFilteredLogs();
+  const csvEsc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const headers = [
+    'Timestamp',
+    'User ID',
+    'NIK / Username',
+    'Full Name',
+    'Position',
+    'Branch Point',
+    'Area',
+    'Regional',
+    'Pulau',
+    'Intent',
+    'User Query',
+    'Assistant Response',
+    'Latency (s)',
+    'Tokens',
+    'Cost (IDR)',
+    'Session ID',
+  ];
+  const lines = [headers.map(csvEsc).join(',')];
+  for (const row of rows) {
+    const user = parseSessionUser(row.session_id, row);
+    const costIdr = Math.round((row.cost || 0) * USD_TO_IDR);
+    const latSec = ((row.latency_ms || 0) / 1000).toFixed(2);
+    lines.push([
+      row.created_at || '',
+      user.id,
+      user.username,
+      user.name,
+      user.role,
+      user.point,
+      user.area,
+      user.regional,
+      user.pulau,
+      row.intent || '',
+      row.query || '',
+      row.answer || '',
+      latSec,
+      row.tokens_raw ?? row.tokens ?? 0,
+      costIdr,
+      row.session_id || '',
+    ].map(csvEsc).join(','));
+  }
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ava_chat_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function initLogsTab() {
   const logSearchInput = document.getElementById('log-search-input');
   const logIntentFilter = document.getElementById('log-intent-filter');
+  const btnExportLogsCsv = document.getElementById('btn-export-logs-csv');
   const btnLogPrev = document.getElementById('btn-log-prev');
   const btnLogNext = document.getElementById('btn-log-next');
 
@@ -675,6 +868,10 @@ export function initLogsTab() {
     });
   }
 
+  if (btnExportLogsCsv) {
+    btnExportLogsCsv.addEventListener('click', exportFilteredLogsToCsv);
+  }
+
   if (btnLogPrev) {
     btnLogPrev.addEventListener('click', () => {
       if (chatLogPage > 1) {
@@ -686,18 +883,7 @@ export function initLogsTab() {
 
   if (btnLogNext) {
     btnLogNext.addEventListener('click', async () => {
-      const q = (logSearchInput as HTMLInputElement)?.value?.toLowerCase().trim() || '';
-      const intentFilter = (logIntentFilter as HTMLSelectElement)?.value || 'ALL';
-      const filtered = rawChatLogs.filter(row => {
-        if (intentFilter !== 'ALL' && row.intent !== intentFilter) return false;
-        if (q) {
-          const queryMatch = (row.query || '').toLowerCase().includes(q);
-          const sessionMatch = (row.session_id || '').toLowerCase().includes(q);
-          const answerMatch = (row.answer || '').toLowerCase().includes(q);
-          if (!queryMatch && !sessionMatch && !answerMatch) return false;
-        }
-        return true;
-      });
+      const filtered = getFilteredLogs();
       const totalPages = Math.ceil(filtered.length / CHAT_LOG_PAGE_SIZE);
 
       if (chatLogPage < totalPages) {
