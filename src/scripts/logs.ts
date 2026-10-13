@@ -105,7 +105,22 @@ function extractGeoFromRow(obj: any): GeoInfo {
     else if ((kl === 'regional' || kl === 'region') && !out.regional) out.regional = vs;
     else if ((kl === 'pulau' || kl === 'island') && !out.pulau) out.pulau = vs;
   }
+  if (!out.pulau && out.regional) {
+    out.pulau = inferPulauFromRegional(out.regional);
+  }
   return out;
+}
+
+export function inferPulauFromRegional(regional: string): string {
+  const r = (regional || '').toLowerCase().trim();
+  if (!r) return '';
+  if (r.includes('jawa') || r.includes('java')) return 'Jawa';
+  if (['sumatera', 'sumatra', 'sumbagsel', 'sumbagut', 'sumbagteng', 'aceh', 'lampung', 'riau', 'jambi', 'bengkulu'].some(k => r.includes(k))) return 'Sumatera';
+  if (['sulawesi', 'sulsel', 'sulteng', 'sulut', 'sultra', 'gorontalo'].some(k => r.includes(k))) return 'Sulawesi';
+  if (['kalimantan', 'borneo', 'kalbar', 'kalteng', 'kalsel', 'kaltim', 'kalut'].some(k => r.includes(k))) return 'Kalimantan';
+  if (['bali', 'nusa', 'nusra', 'ntb', 'ntt', 'lombok'].some(k => r.includes(k))) return 'Bali & Nusa Tenggara';
+  if (['maluku', 'papua'].some(k => r.includes(k))) return 'Maluku & Papua';
+  return '';
 }
 
 async function ensureBranchGeoLoaded(): Promise<void> {
@@ -216,7 +231,10 @@ export function parseSessionUser(sessionId: string, row?: any) {
   const finalRole = String(row?.position || parsedRole || 'Field Staff').trim();
   const finalArea = String(row?.area || branchGeo?.area || '').trim();
   const finalRegional = String(row?.regional || branchGeo?.regional || '').trim();
-  const finalPulau = String(row?.pulau || branchGeo?.pulau || '').trim();
+  let finalPulau = String(row?.pulau || branchGeo?.pulau || '').trim();
+  if (!finalPulau && finalRegional) {
+    finalPulau = inferPulauFromRegional(finalRegional);
+  }
   const finalUsername = String(row?.username || '').trim();
 
   return {
@@ -363,18 +381,19 @@ export async function loadChatLogs() {
 
     nextLogCursor = data.next_cursor || null;
 
-    if (nextLogCursor) {
+    while (nextLogCursor) {
       try {
-        const res2 = await fetch(`/api/logs?limit=500&cursor=${encodeURIComponent(nextLogCursor)}`);
-        if (res2.ok) {
-          const data2 = await res2.json();
-          if (data2.logs && data2.logs.length > 0) {
-            logs = logs.concat(data2.logs);
-          }
-          nextLogCursor = data2.next_cursor || null;
+        const resNext = await fetch(`/api/logs?limit=500&cursor=${encodeURIComponent(nextLogCursor)}`);
+        if (!resNext.ok) break;
+        const dataNext = await resNext.json();
+        if (dataNext.logs && dataNext.logs.length > 0) {
+          logs = logs.concat(dataNext.logs);
         }
+        nextLogCursor = dataNext.next_cursor || null;
+        if (!dataNext.logs || dataNext.logs.length < 500) break;
       } catch (e) {
         console.warn('Background log fetch error:', e);
+        break;
       }
     }
 
@@ -417,7 +436,10 @@ export async function loadChatLogs() {
 
     if (activeLogSubtab === 'explorer') {
       renderSessionExplorer();
+    } else if (activeLogSubtab === 'classification') {
+      renderClassificationView();
     }
+    populateClassificationFilters();
 
   } catch (err: any) {
     console.error('Failed to load chat logs:', err);
@@ -832,6 +854,656 @@ function exportFilteredLogsToCsv() {
   URL.revokeObjectURL(url);
 }
 
+// ==========================================
+// 4. CLASSIFICATION & REGIONAL ANALYTICS
+// ==========================================
+
+export const CONSOLIDATED_DOMAINS = [
+  "KPI, Target & Remunerasi (Insentif / Bonus)",
+  "Portofolio, Penagihan (Collection) & Recovery Cabang",
+  "Produk Pembiayaan, Proses Bisnis & Akuisisi Lapangan",
+  "Kepemimpinan Cabang & Manajemen Tim (Leadership BM & AM)",
+  "Sistem, Aplikasi Lapangan & Helpdesk (PST / Amartha Care)",
+  "LMS, Pelatihan & Materi Pembelajaran",
+  "HR, Karir, Benefit & Regulasi Kepegawaian",
+  "Kepatuhan, Mitigasi Fraud & Perlindungan Nasabah (Client Protection)",
+  "Simulasi Interaktif & Roleplay Lapangan (Sales & Penagihan)",
+  "Budaya Perusahaan, Profil Organisasi & Personel Lapangan",
+  "Interaksi Percakapan, Sapaan & Obrolan Santai (Off-Scope)",
+];
+
+const DOMAIN_SUBTOPICS_HINT: Record<string, string> = {
+  "KPI, Target & Remunerasi (Insentif / Bonus)": "Pengecekan Skor, Syarat & Jadwal Pencairan Insentif, Parameter Bobot, Metrik Loan Paid & Dashboard Ranking",
+  "Portofolio, Penagihan (Collection) & Recovery Cabang": "Penurunan PAR/NPL, Teknik Negosiasi Mitra Mangkir/Kabur, Flow Rate, DPD, WOB, RR & Sistem Tanggung Renteng",
+  "Produk Pembiayaan, Proses Bisnis & Akuisisi Lapangan": "Modal Usaha vs GL, Prosedur UK/KL, NTB, ETB/Renewal, Pelunasan Dini (Peldin), AmarthaFin & Pelayanan Majelis",
+  "Kepemimpinan Cabang & Manajemen Tim (Leadership BM & AM)": "Briefing Pagi, Penanganan BP Mangkir, Kepemimpinan Situasional, Pemetaan R1-R4 & Revamping Wilayah",
+  "Sistem, Aplikasi Lapangan & Helpdesk (PST / Amartha Care)": "Alur Eskalasi Insiden PST, Troubleshooting Aplikasi BP, Input VA/Setoran & Berkas Onboarding Cabang",
+  "LMS, Pelatihan & Materi Pembelajaran": "Presensi Kehadiran Pelatihan, Kuis/Post-Test, Akses Modul Amarthapedia & Troubleshooting Video Materi",
+  "HR, Karir, Benefit & Regulasi Kepegawaian": "Kompensasi, Reimburse Bensin/Tol, Benefit Melahirkan, Lembur Sabtu, Hak Cuti & Promosi Assesment BM/AM",
+  "Kepatuhan, Mitigasi Fraud & Perlindungan Nasabah (Client Protection)": "Mitigasi Fraud Lapangan, Fraud Joki, Pelaporan Fraud, Perlindungan Nasabah & Kode Etik",
+  "Simulasi Interaktif & Roleplay Lapangan (Sales & Penagihan)": "Roleplay Pitching Sales Mitra, Penanganan Keberatan Pinjaman & Latihan Negosiasi Penagihan",
+  "Budaya Perusahaan, Profil Organisasi & Personel Lapangan": "Internalisasi Nilai Budaya, Yel-Yel Amartha, Profil Pendiri, CEO & Struktur Organisasi",
+  "Interaksi Percakapan, Sapaan & Obrolan Santai (Off-Scope)": "Sapaan (Greeting), Tanggapan Singkat Pengguna, Konfirmasi & Obrolan Santai di Luar Konteks",
+};
+
+let classFilterPulau = 'ALL';
+let classFilterRegional = 'ALL';
+let classFilterArea = 'ALL';
+let classFilterPoint = 'ALL';
+let classFilterPosition = 'ALL';
+let classFilterAccountType = 'REAL'; // 'REAL' (User ID > 20) | 'ALL' | 'TESTING' (User ID <= 20)
+let classFilterSearch = '';
+
+export function isRealUserLog(row: any): boolean {
+  const sid = String(row?.session_id || '').trim();
+  if (!sid || sid === 'Unknown' || sid === 'dev_user_123') return false;
+  const rawId = sid.split('_')[0];
+  const n = parseInt(rawId, 10);
+  return !isNaN(n) && n > 20;
+}
+
+function getLogTopicCategory(row: any): string {
+  if (row.topic_category && row.topic_category !== 'UNKNOWN' && CONSOLIDATED_DOMAINS.includes(row.topic_category)) {
+    return row.topic_category;
+  }
+  const q = String(row.query || '').toLowerCase().trim();
+  if (!q) return "Interaksi Percakapan, Sapaan & Obrolan Santai (Off-Scope)";
+  
+  if (["kpi", "insentif", "bonus", "skor", "target", "disburse", "loan paid", "ranking", "rangking", "superset", "drawdown", "kintamani"].some(k => q.includes(k))) {
+    return "KPI, Target & Remunerasi (Insentif / Bonus)";
+  }
+  if (["par", "npl", "dpd", "wob", "rr", "flow rate", "tagih", "nagih", "mangkir", "kabur", "jb", "ptp", "btc", "tanggung renteng", "recovery"].some(k => q.includes(k))) {
+    return "Portofolio, Penagihan (Collection) & Recovery Cabang";
+  }
+  if (["gl", "modal", "pembiayaan", "uk", "kl", "ntb", "etb", "ranwel", "renewal", "peldin", "poket", "celengan", "afin", "amarthafin", "sosialisasi", "topsheet", "kumpulan"].some(k => q.includes(k))) {
+    return "Produk Pembiayaan, Proses Bisnis & Akuisisi Lapangan";
+  }
+  if (["briefing", "morning", "r1-r4", "1-on-1", "leadership", "kepemimpinan", "split", "revamping", "petakan", "wilayah", "bp senior", "tim"].some(k => q.includes(k))) {
+    return "Kepemimpinan Cabang & Manajemen Tim (Leadership BM & AM)";
+  }
+  if (["pst", "care", "aplikasi", "va", "save va", "50/50", "upload", "onboarding", "incident"].some(k => q.includes(k))) {
+    return "Sistem, Aplikasi Lapangan & Helpdesk (PST / Amartha Care)";
+  }
+  if (["absen", "hadir", "presensi", "post test", "pre test", "kuis", "sertifikat", "video", "vd", "materi", "amarthapedia"].some(k => q.includes(k))) {
+    return "LMS, Pelatihan & Materi Pembelajaran";
+  }
+  if (["gaji", "payroll", "benefit", "reimburse", "lembur", "sabtu", "cuti", "karir", "assesment", "bmdp", "promosi"].some(k => q.includes(k))) {
+    return "HR, Karir, Benefit & Regulasi Kepegawaian";
+  }
+  if (["fraud", "joki", "atas nama", "etik", "pelecehan", "client protection"].some(k => q.includes(k))) {
+    return "Kepatuhan, Mitigasi Fraud & Perlindungan Nasabah (Client Protection)";
+  }
+  if (["latihan sales", "berperan", "roleplay", "simulasi", "bu siti"].some(k => q.includes(k))) {
+    return "Simulasi Interaktif & Roleplay Lapangan (Sales & Penagihan)";
+  }
+  if (["yel yel", "budaya", "culture", "ceo", "pendiri", "kapan amartha"].some(k => q.includes(k))) {
+    return "Budaya Perusahaan, Profil Organisasi & Personel Lapangan";
+  }
+  if (["halo", "hallo", "pagi", "sore", "malam", "hi", "ok", "oke", "siap", "makasih", "thanks", "ganteng", "lapar", "ngantuk", "pacar", "iya"].some(k => q.includes(k))) {
+    return "Interaksi Percakapan, Sapaan & Obrolan Santai (Off-Scope)";
+  }
+  return "Produk Pembiayaan, Proses Bisnis & Akuisisi Lapangan";
+}
+
+function getFilteredClassificationLogs(): any[] {
+  const qSearch = classFilterSearch.toLowerCase().trim();
+  return rawChatLogs.filter(row => {
+    if (classFilterAccountType === 'REAL' && !isRealUserLog(row)) return false;
+    if (classFilterAccountType === 'TESTING' && isRealUserLog(row)) return false;
+
+    const user = parseSessionUser(row.session_id, row);
+    if (classFilterPulau !== 'ALL' && (user.pulau || 'Lainnya') !== classFilterPulau) return false;
+    if (classFilterRegional !== 'ALL' && (user.regional || 'Lainnya') !== classFilterRegional) return false;
+    if (classFilterArea !== 'ALL' && (user.area || 'Lainnya') !== classFilterArea) return false;
+    if (classFilterPoint !== 'ALL' && (user.point || 'Lainnya') !== classFilterPoint) return false;
+    if (classFilterPosition !== 'ALL' && (user.role || 'Lainnya') !== classFilterPosition) return false;
+    if (qSearch) {
+      const matchQuery = String(row.query || '').toLowerCase().includes(qSearch);
+      const matchCat = getLogTopicCategory(row).toLowerCase().includes(qSearch);
+      const matchUser = user.name.toLowerCase().includes(qSearch) || user.point.toLowerCase().includes(qSearch) || user.role.toLowerCase().includes(qSearch);
+      if (!matchQuery && !matchCat && !matchUser) return false;
+    }
+    return true;
+  });
+}
+
+export function populateClassificationFilters() {
+  const pulauSelect = document.getElementById('class-filter-pulau') as HTMLSelectElement | null;
+  const regionalSelect = document.getElementById('class-filter-regional') as HTMLSelectElement | null;
+  const areaSelect = document.getElementById('class-filter-area') as HTMLSelectElement | null;
+  const pointSelect = document.getElementById('class-filter-point') as HTMLSelectElement | null;
+  const positionSelect = document.getElementById('class-filter-position') as HTMLSelectElement | null;
+
+  if (!pulauSelect || !regionalSelect || !areaSelect || !pointSelect) return;
+
+  const pulauSet = new Set<string>();
+  const regionalSet = new Set<string>();
+  const areaSet = new Set<string>();
+  const pointSet = new Set<string>();
+  const positionSet = new Set<string>();
+
+  rawChatLogs.forEach(row => {
+    if (classFilterAccountType === 'REAL' && !isRealUserLog(row)) return;
+    if (classFilterAccountType === 'TESTING' && isRealUserLog(row)) return;
+    const user = parseSessionUser(row.session_id, row);
+    pulauSet.add(user.pulau || 'Lainnya');
+    regionalSet.add(user.regional || 'Lainnya');
+    areaSet.add(user.area || 'Lainnya');
+    pointSet.add(user.point || 'Lainnya');
+    positionSet.add(user.role || 'Lainnya');
+  });
+
+  const fillSelect = (selectEl: HTMLSelectElement, set: Set<string>, allLabel: string, currentVal: string) => {
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b, 'id'));
+    const options = [`<option value="ALL">${allLabel}</option>`].concat(
+      sorted.map(val => `<option value="${escapeHtml(val)}" ${val === currentVal ? 'selected' : ''}>${escapeHtml(val)}</option>`)
+    );
+    selectEl.innerHTML = options.join('');
+  };
+
+  fillSelect(pulauSelect, pulauSet, 'All Pulau', classFilterPulau);
+  fillSelect(regionalSelect, regionalSet, 'All Regions', classFilterRegional);
+  fillSelect(areaSelect, areaSet, 'All Areas', classFilterArea);
+  fillSelect(pointSelect, pointSet, 'All Branch Points', classFilterPoint);
+  if (positionSelect) {
+    fillSelect(positionSelect, positionSet, 'All Positions', classFilterPosition);
+  }
+}
+
+export function renderClassificationView() {
+  const tableRows = document.getElementById('classification-table-rows');
+  const statTotalQueries = document.getElementById('class-stat-total-queries');
+  const statTopCategory = document.getElementById('class-stat-top-category');
+  const statTopPct = document.getElementById('class-stat-top-pct');
+  const statTopPosition = document.getElementById('class-stat-top-position');
+  const statTopPositionPct = document.getElementById('class-stat-top-position-pct');
+  const statIslandsCount = document.getElementById('class-stat-islands-count');
+  const statTopIsland = document.getElementById('class-stat-top-island');
+  const statBranchesCount = document.getElementById('class-stat-branches-count');
+  const filterCountBadge = document.getElementById('class-filter-count-badge');
+  const geoIslandsContainer = document.getElementById('class-geo-islands-container');
+  const geoPointsContainer = document.getElementById('class-geo-points-container');
+
+  if (!tableRows) return;
+
+  const filteredLogs = getFilteredClassificationLogs();
+  const total = filteredLogs.length;
+
+  if (filterCountBadge) {
+    const typeLabel = classFilterAccountType === 'REAL' ? 'Real Accounts (>20)' : (classFilterAccountType === 'TESTING' ? 'Test Accounts' : 'All Accounts');
+    filterCountBadge.innerText = `${typeLabel}: ${total.toLocaleString('en-US')} turns`;
+  }
+
+  if (statTotalQueries) {
+    statTotalQueries.innerText = total.toLocaleString('en-US');
+  }
+
+  if (total === 0) {
+    tableRows.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-gray-400">No query logs match the selected filters.</td></tr>`;
+    if (geoIslandsContainer) geoIslandsContainer.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">No distribution data available.</div>`;
+    if (geoPointsContainer) geoPointsContainer.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">No branch points mapped for this dataset.</div>`;
+    if (statTopCategory) statTopCategory.innerText = '—';
+    if (statTopPct) statTopPct.innerText = '0%';
+    if (statTopPosition) statTopPosition.innerText = '—';
+    if (statTopPositionPct) statTopPositionPct.innerText = '0%';
+    if (statIslandsCount) statIslandsCount.innerText = '0';
+    if (statBranchesCount) statBranchesCount.innerText = '0';
+    return;
+  }
+
+  // Aggregate by Category
+  interface CategoryAgg {
+    category: string;
+    subtopicHint: string;
+    count: number;
+    pct: number;
+    islands: Record<string, number>;
+    regionals: Record<string, number>;
+    points: Record<string, number>;
+    positions: Record<string, number>;
+    verbatimMap: Map<string, { count: number; sampleUsers: string[]; samplePoints: string[] }>;
+  }
+
+  const categoryAggs: Record<string, CategoryAgg> = {};
+  CONSOLIDATED_DOMAINS.forEach(cat => {
+    categoryAggs[cat] = {
+      category: cat,
+      subtopicHint: DOMAIN_SUBTOPICS_HINT[cat] || '',
+      count: 0,
+      pct: 0,
+      islands: {},
+      regionals: {},
+      points: {},
+      positions: {},
+      verbatimMap: new Map(),
+    };
+  });
+
+  const islandTotals: Record<string, number> = {};
+  const islandRegionals: Record<string, Record<string, number>> = {};
+  const regionalTotals: Record<string, number> = {};
+  const pointTotals: Record<string, { count: number; area: string; regional: string; pulau: string }> = {};
+  const roleTotals: Record<string, number> = {};
+
+  filteredLogs.forEach(row => {
+    const cat = getLogTopicCategory(row);
+    const user = parseSessionUser(row.session_id, row);
+    const qText = String(row.query || '').trim();
+
+    if (!categoryAggs[cat]) {
+      categoryAggs[cat] = {
+        category: cat,
+        subtopicHint: DOMAIN_SUBTOPICS_HINT[cat] || '',
+        count: 0,
+        pct: 0,
+        islands: {},
+        regionals: {},
+        points: {},
+        positions: {},
+        verbatimMap: new Map(),
+      };
+    }
+
+    const agg = categoryAggs[cat];
+    agg.count++;
+
+    const pulauName = user.pulau || 'Lainnya';
+    const regName = user.regional || 'Lainnya';
+    const ptName = user.point || 'Lainnya';
+    const areaName = user.area || 'Lainnya';
+    const roleName = user.role || 'Field Staff';
+
+    agg.islands[pulauName] = (agg.islands[pulauName] || 0) + 1;
+    agg.regionals[regName] = (agg.regionals[regName] || 0) + 1;
+    agg.points[ptName] = (agg.points[ptName] || 0) + 1;
+    agg.positions[roleName] = (agg.positions[roleName] || 0) + 1;
+
+    islandTotals[pulauName] = (islandTotals[pulauName] || 0) + 1;
+    regionalTotals[regName] = (regionalTotals[regName] || 0) + 1;
+    roleTotals[roleName] = (roleTotals[roleName] || 0) + 1;
+
+    if (!islandRegionals[pulauName]) {
+      islandRegionals[pulauName] = {};
+    }
+    islandRegionals[pulauName][regName] = (islandRegionals[pulauName][regName] || 0) + 1;
+
+    if (!pointTotals[ptName]) {
+      pointTotals[ptName] = { count: 0, area: areaName, regional: regName, pulau: pulauName };
+    }
+    pointTotals[ptName].count++;
+
+    if (qText) {
+      if (!agg.verbatimMap.has(qText)) {
+        agg.verbatimMap.set(qText, { count: 0, sampleUsers: [], samplePoints: [] });
+      }
+      const vEntry = agg.verbatimMap.get(qText)!;
+      vEntry.count++;
+      if (user.name && !vEntry.sampleUsers.includes(user.name) && vEntry.sampleUsers.length < 3) {
+        vEntry.sampleUsers.push(user.name);
+      }
+      if (ptName && !vEntry.samplePoints.includes(ptName) && vEntry.samplePoints.length < 3) {
+        vEntry.samplePoints.push(ptName);
+      }
+    }
+  });
+
+  const sortedAggs = Object.values(categoryAggs)
+    .map(agg => {
+      agg.pct = total > 0 ? (agg.count / total) * 100 : 0;
+      return agg;
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Top Category Stat
+  const topCat = sortedAggs[0];
+  if (statTopCategory && topCat) {
+    statTopCategory.innerText = topCat.category;
+    statTopCategory.title = topCat.category;
+  }
+  if (statTopPct && topCat) {
+    statTopPct.innerText = `${topCat.pct.toFixed(1)}% (${topCat.count.toLocaleString('id-ID')})`;
+  }
+
+  // Top Position Stat
+  const sortedRoles = Object.entries(roleTotals).sort((a, b) => b[1] - a[1]);
+  const topRole = sortedRoles[0];
+  if (statTopPosition && topRole) {
+    statTopPosition.innerText = topRole[0];
+    statTopPosition.title = topRole[0];
+  }
+  if (statTopPositionPct && topRole) {
+    const rolePct = ((topRole[1] / total) * 100).toFixed(1);
+    statTopPositionPct.innerText = `${rolePct}% (${topRole[1].toLocaleString('en-US')})`;
+  }
+
+  // Island Stat
+  const uniqueIslands = Object.keys(islandTotals).filter(k => k !== 'Lainnya' && k !== '');
+  if (statIslandsCount) {
+    statIslandsCount.innerText = uniqueIslands.length.toString();
+  }
+  const sortedIslands = Object.entries(islandTotals).sort((a, b) => b[1] - a[1]);
+  if (statTopIsland && sortedIslands.length > 0) {
+    const topIsl = sortedIslands[0];
+    const topIslPct = ((topIsl[1] / total) * 100).toFixed(1);
+    statTopIsland.innerText = `Dominant: ${topIsl[0]} (${topIslPct}%)`;
+  }
+
+  // Branch Points Stat
+  const uniquePoints = Object.keys(pointTotals).filter(k => k !== 'Lainnya' && k !== '');
+  if (statBranchesCount) {
+    statBranchesCount.innerText = uniquePoints.length.toString();
+  }
+
+  // Helper for Geographic Color Range (Acuan User):
+  // > 70%: Sangat Tinggi (Hijau)
+  // 51% - 70%: Tinggi (Biru)
+  // 36% - 50%: Sedang (Oranye)
+  // 20% - 35%: Rendah (Kuning / Amber)
+  // < 20%: Di Bawah 20% (Merah)
+  function getGeoColorInfo(pctNum: number): { className: string; hex: string } {
+    if (pctNum > 70) return { className: 'bg-emerald-500', hex: '#10b981' };
+    if (pctNum >= 51) return { className: 'bg-blue-500', hex: '#3b82f6' };
+    if (pctNum >= 36) return { className: 'bg-orange-500', hex: '#f97316' };
+    if (pctNum >= 20) return { className: 'bg-amber-400', hex: '#f59e0b' };
+    return { className: 'bg-rose-500', hex: '#ef4444' };
+  }
+
+  // Render Card 1: Pulau & Regional Distribution
+  if (geoIslandsContainer) {
+    geoIslandsContainer.innerHTML = sortedIslands.map(([islName, count]) => {
+      const pctNum = total > 0 ? (count / total) * 100 : 0;
+      const pct = pctNum.toFixed(1);
+      const colorInfo = getGeoColorInfo(pctNum);
+
+      const regList = Object.entries(islandRegionals[islName] || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([rName, rCount]) => `<span class="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px] font-medium">${escapeHtml(rName)} (${rCount})</span>`)
+        .join(' ');
+
+      return `
+        <div class="space-y-1 p-2 rounded-xl hover:bg-gray-50/80 transition-colors">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-gray-900">${escapeHtml(islName)}</span>
+            <div class="flex items-center gap-1.5 font-mono">
+              <span class="font-extrabold" style="color: ${colorInfo.hex}">${pct}%</span>
+              <span class="text-gray-400 text-[11px]">(${count.toLocaleString('en-US')} turns)</span>
+            </div>
+          </div>
+          <div class="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full rounded-full ${colorInfo.className}" style="width: ${pct}%; background-color: ${colorInfo.hex} !important;"></div>
+          </div>
+          ${regList ? `<div class="pt-0.5 flex flex-wrap gap-1">${regList}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Render Card 2: Top Points & Area
+  if (geoPointsContainer) {
+    const sortedPoints = Object.entries(pointTotals)
+      .filter(([pt]) => pt !== 'Lainnya')
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10);
+
+    // Full height for <= 10 items; scroll only if items exceed 10
+    if (sortedPoints.length > 10) {
+      geoPointsContainer.className = "space-y-2 pt-1 max-h-[520px] overflow-y-auto pr-1";
+    } else {
+      geoPointsContainer.className = "space-y-2 pt-1";
+    }
+
+    if (sortedPoints.length === 0) {
+      geoPointsContainer.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">No branch points mapped for this dataset.</div>`;
+    } else {
+      geoPointsContainer.innerHTML = sortedPoints.map(([pt, info], idx) => {
+        const pct = ((info.count / total) * 100).toFixed(1);
+        return `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50/60 hover:bg-gray-100/80 transition-colors border border-gray-100">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-5 h-5 rounded-full bg-white border border-gray-200 text-gray-500 text-[10px] font-bold flex items-center justify-center shrink-0 shadow-2xs">${idx + 1}</span>
+              <div class="min-w-0">
+                <div class="font-bold text-gray-900 text-xs truncate">${escapeHtml(pt)}</div>
+                <div class="text-[10px] text-gray-400 truncate">
+                  ${info.area ? escapeHtml(info.area) : ''}${info.regional ? ` • ${escapeHtml(info.regional)}` : ''}${info.pulau ? ` (${escapeHtml(info.pulau)})` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="text-right shrink-0 font-mono text-xs pl-2">
+              <span class="font-bold text-gray-900">${info.count}</span>
+              <span class="text-[10px] text-gray-400 block">${pct}%</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Render Main Table Rows
+  tableRows.innerHTML = sortedAggs.map((agg, idx) => {
+    const verbatimCount = agg.verbatimMap.size;
+    const sortedVerbatims = Array.from(agg.verbatimMap.entries()).sort((a, b) => b[1].count - a[1].count);
+
+    const islandBadges = Object.entries(agg.islands)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([isl, cnt]) => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+          <span>${escapeHtml(isl)}</span>
+          <span class="text-gray-400">(${cnt})</span>
+        </span>
+      `).join(' ');
+
+    const positionBadges = Object.entries(agg.positions)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([pos, cnt]) => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+          <span>${escapeHtml(pos)}</span>
+          <span class="text-gray-400">(${cnt})</span>
+        </span>
+      `).join(' ');
+
+    const accordionId = `class-accordion-${idx}`;
+
+    return `
+      <!-- Main Category Row -->
+      <tr class="hover:bg-gray-50/80 transition-colors group">
+        <td class="py-3 px-4 text-center font-mono text-gray-400 font-bold">${idx + 1}</td>
+        <td class="py-3 px-4">
+          <div class="font-bold text-gray-900 text-xs">${escapeHtml(agg.category)}</div>
+          <div class="mt-0.5 text-[11px] text-gray-400 leading-snug line-clamp-2">${escapeHtml(agg.subtopicHint)}</div>
+        </td>
+        <td class="py-3 px-4 text-right">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-900 border border-gray-200/80 font-mono">
+            ${agg.count.toLocaleString('en-US')}
+          </span>
+        </td>
+        <td class="py-3 px-4 text-right font-mono font-extrabold text-gray-900">
+          ${agg.pct.toFixed(2)}%
+        </td>
+        <td class="py-3 px-4">
+          <div class="flex flex-wrap gap-1">
+            ${islandBadges || '<span class="text-gray-400 text-[10px]">—</span>'}
+          </div>
+        </td>
+        <td class="py-3 px-4">
+          <div class="flex flex-wrap gap-1">
+            ${positionBadges || '<span class="text-gray-400 text-[10px]">—</span>'}
+          </div>
+        </td>
+        <td class="py-3 px-4 text-center">
+          <button
+            type="button"
+            data-target="${accordionId}"
+            class="btn-toggle-verbatim px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-[11px] font-semibold text-gray-700 shadow-2xs cursor-pointer transition-all flex items-center justify-center gap-1 mx-auto"
+          >
+            <span>Verbatim (${verbatimCount})</span>
+            <svg class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </td>
+      </tr>
+
+      <!-- Expandable Verbatim Queries Details Row -->
+      <tr id="${accordionId}" class="hidden bg-gray-50/40 border-y border-gray-200/60">
+        <td colspan="7" class="p-4 sm:p-5">
+          <div class="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-xs space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-gray-900"></span>
+                <span class="text-xs font-bold text-gray-900">Field Verbatim Query Variations</span>
+                <span class="text-[11px] font-mono text-gray-400">(${sortedVerbatims.length} unique variations, total ${agg.count} turns)</span>
+              </div>
+              <button
+                type="button"
+                data-cat="${escapeHtml(agg.category)}"
+                class="btn-copy-verbatims text-[11px] font-semibold text-gray-700 hover:text-black cursor-pointer flex items-center gap-1 self-start sm:self-auto"
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <span>Copy All Verbatims</span>
+              </button>
+            </div>
+
+            <!-- Verbatim Items Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+              ${sortedVerbatims.map(([qStr, vInfo]) => {
+                const samplePts = vInfo.samplePoints.filter(Boolean).join(', ');
+                return `
+                  <div class="p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-300 transition-all text-xs flex flex-col justify-between">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="font-medium text-gray-900 leading-snug">“${escapeHtml(qStr)}”</div>
+                      ${vInfo.count > 1 ? `
+                        <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 font-mono font-bold text-[10px] shrink-0">
+                          ${vInfo.count}x
+                        </span>
+                      ` : ''}
+                    </div>
+                    ${samplePts ? `
+                      <div class="mt-1.5 text-[10px] text-gray-400 font-sans flex items-center gap-1 truncate">
+                        <span>📍 Origin:</span>
+                        <span class="text-gray-600 truncate">${escapeHtml(samplePts)}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Attach Accordion Toggle Listeners
+  document.querySelectorAll('.btn-toggle-verbatim').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = btn.getAttribute('data-target');
+      if (!targetId) return;
+      const targetEl = document.getElementById(targetId);
+      if (!targetEl) return;
+      const isHidden = targetEl.classList.contains('hidden');
+      if (isHidden) {
+        targetEl.classList.remove('hidden');
+        btn.querySelector('svg')?.classList.add('rotate-180');
+      } else {
+        targetEl.classList.add('hidden');
+        btn.querySelector('svg')?.classList.remove('rotate-180');
+      }
+    });
+  });
+
+  // Attach Copy Verbatim Listeners
+  document.querySelectorAll('.btn-copy-verbatims').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catName = btn.getAttribute('data-cat');
+      if (!catName || !categoryAggs[catName]) return;
+      const agg = categoryAggs[catName];
+      const sortedVerbatims = Array.from(agg.verbatimMap.entries()).sort((a, b) => b[1].count - a[1].count);
+      const textToCopy = sortedVerbatims.map(([qStr, vInfo]) => vInfo.count > 1 ? `• ${qStr} (${vInfo.count}x)` : `• ${qStr}`).join('\n');
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<span class="text-gray-900 font-bold">✓ Copied!</span>`;
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+      });
+    });
+  });
+}
+
+export function exportClassificationCsv() {
+  const filteredLogs = getFilteredClassificationLogs();
+  if (filteredLogs.length === 0) {
+    alert('No classification data available for export with current filters.');
+    return;
+  }
+
+  const catMap = new Map<string, { count: number; islands: Set<string>; positions: Map<string, number>; verbatims: Map<string, number> }>();
+  CONSOLIDATED_DOMAINS.forEach(cat => {
+    catMap.set(cat, { count: 0, islands: new Set(), positions: new Map(), verbatims: new Map() });
+  });
+
+  filteredLogs.forEach(row => {
+    const cat = getLogTopicCategory(row);
+    const user = parseSessionUser(row.session_id, row);
+    const qText = String(row.query || '').trim();
+
+    if (!catMap.has(cat)) {
+      catMap.set(cat, { count: 0, islands: new Set(), positions: new Map(), verbatims: new Map() });
+    }
+    const entry = catMap.get(cat)!;
+    entry.count++;
+    if (user.pulau) entry.islands.add(user.pulau);
+    const roleName = user.role || 'Field Staff';
+    entry.positions.set(roleName, (entry.positions.get(roleName) || 0) + 1);
+    if (qText) {
+      entry.verbatims.set(qText, (entry.verbatims.get(qText) || 0) + 1);
+    }
+  });
+
+  const total = filteredLogs.length;
+  const csvEsc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const headers = [
+    'No',
+    'Classification & Field Subtopics',
+    'Frequency',
+    '% Total',
+    'Pulau Distribution',
+    'Position Distribution',
+    'Field Verbatim Queries',
+  ];
+
+  const sortedCats = Array.from(catMap.entries()).sort((a, b) => b[1].count - a[1].count);
+  const lines = [headers.map(csvEsc).join(',')];
+
+  sortedCats.forEach(([catName, info], idx) => {
+    const pct = total > 0 ? ((info.count / total) * 100).toFixed(2) + '%' : '0%';
+    const islText = Array.from(info.islands).join(', ');
+    const posText = Array.from(info.positions.entries()).sort((a, b) => b[1] - a[1]).map(([p, c]) => `${p} (${c})`).join(', ');
+    const sortedV = Array.from(info.verbatims.entries()).sort((a, b) => b[1] - a[1]);
+    const verbatimText = sortedV.map(([qStr, c]) => c > 1 ? `• ${qStr} (${c}x)` : `• ${qStr}`).join('\n');
+
+    lines.push([
+      idx + 1,
+      catName,
+      info.count,
+      pct,
+      islText,
+      posText,
+      verbatimText,
+    ].map(csvEsc).join(','));
+  });
+
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `klasifikasi_query_user_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function initLogsTab() {
   const logSearchInput = document.getElementById('log-search-input');
   const logIntentFilter = document.getElementById('log-intent-filter');
@@ -846,6 +1518,92 @@ export function initLogsTab() {
   const ltmSearchInput = document.getElementById('ltm-search-input');
   const threadModal = document.getElementById('thread-modal') as HTMLDialogElement | null;
   const btnCloseThreadModal = document.getElementById('btn-close-thread-modal');
+
+  // Classification Filter Controls
+  const classFilterPulauSelect = document.getElementById('class-filter-pulau') as HTMLSelectElement | null;
+  const classFilterRegionalSelect = document.getElementById('class-filter-regional') as HTMLSelectElement | null;
+  const classFilterAreaSelect = document.getElementById('class-filter-area') as HTMLSelectElement | null;
+  const classFilterPointSelect = document.getElementById('class-filter-point') as HTMLSelectElement | null;
+  const classFilterPositionSelect = document.getElementById('class-filter-position') as HTMLSelectElement | null;
+  const classFilterSearchInput = document.getElementById('class-filter-search') as HTMLInputElement | null;
+  const classFilterAccountSelect = document.getElementById('class-filter-account') as HTMLSelectElement | null;
+  const btnResetClassFilters = document.getElementById('btn-reset-class-filters');
+  const btnExportClassCsv = document.getElementById('btn-export-classification-csv');
+
+  if (classFilterAccountSelect) {
+    classFilterAccountSelect.addEventListener('change', () => {
+      classFilterAccountType = classFilterAccountSelect.value;
+      populateClassificationFilters();
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterPulauSelect) {
+    classFilterPulauSelect.addEventListener('change', () => {
+      classFilterPulau = classFilterPulauSelect.value;
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterRegionalSelect) {
+    classFilterRegionalSelect.addEventListener('change', () => {
+      classFilterRegional = classFilterRegionalSelect.value;
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterAreaSelect) {
+    classFilterAreaSelect.addEventListener('change', () => {
+      classFilterArea = classFilterAreaSelect.value;
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterPointSelect) {
+    classFilterPointSelect.addEventListener('change', () => {
+      classFilterPoint = classFilterPointSelect.value;
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterPositionSelect) {
+    classFilterPositionSelect.addEventListener('change', () => {
+      classFilterPosition = classFilterPositionSelect.value;
+      renderClassificationView();
+    });
+  }
+
+  if (classFilterSearchInput) {
+    classFilterSearchInput.addEventListener('input', () => {
+      classFilterSearch = classFilterSearchInput.value;
+      renderClassificationView();
+    });
+  }
+
+  if (btnResetClassFilters) {
+    btnResetClassFilters.addEventListener('click', () => {
+      classFilterPulau = 'ALL';
+      classFilterRegional = 'ALL';
+      classFilterArea = 'ALL';
+      classFilterPoint = 'ALL';
+      classFilterPosition = 'ALL';
+      classFilterAccountType = 'REAL';
+      classFilterSearch = '';
+      if (classFilterPulauSelect) classFilterPulauSelect.value = 'ALL';
+      if (classFilterRegionalSelect) classFilterRegionalSelect.value = 'ALL';
+      if (classFilterAreaSelect) classFilterAreaSelect.value = 'ALL';
+      if (classFilterPointSelect) classFilterPointSelect.value = 'ALL';
+      if (classFilterPositionSelect) classFilterPositionSelect.value = 'ALL';
+      if (classFilterAccountSelect) classFilterAccountSelect.value = 'REAL';
+      if (classFilterSearchInput) classFilterSearchInput.value = '';
+      populateClassificationFilters();
+      renderClassificationView();
+    });
+  }
+
+  if (btnExportClassCsv) {
+    btnExportClassCsv.addEventListener('click', exportClassificationCsv);
+  }
 
   if (btnCloseThreadModal && threadModal) {
     btnCloseThreadModal.addEventListener('click', () => threadModal.close());
@@ -901,6 +1659,10 @@ export function initLogsTab() {
             nextLogCursor = data.next_cursor || null;
             chatLogPage++;
             renderChatLogsTable();
+            populateClassificationFilters();
+            if (activeLogSubtab === 'classification') {
+              renderClassificationView();
+            }
           }
         } catch (e) {
           console.error('Failed to fetch more logs:', e);
@@ -932,6 +1694,8 @@ export function initLogsTab() {
         renderSessionExplorer();
       } else if (subtab === 'ltm') {
         renderLTMTable();
+      } else if (subtab === 'classification') {
+        renderClassificationView();
       }
     });
   });

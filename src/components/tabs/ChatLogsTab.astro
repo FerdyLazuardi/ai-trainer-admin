@@ -9,6 +9,9 @@
     <button data-log-subtab="recent" class="log-subtab-btn active px-4 py-2 rounded-full text-xs font-bold text-gray-900 bg-white border border-gray-200/80 shadow-xs cursor-pointer transition-all whitespace-nowrap">
       Recent Logs & Overview
     </button>
+    <button data-log-subtab="classification" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all whitespace-nowrap">
+      Classification
+    </button>
     <button data-log-subtab="explorer" class="log-subtab-btn px-4 py-2 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer transition-all whitespace-nowrap">
       Session Explorer
     </button>
@@ -185,6 +188,192 @@
         </div>
       </div>
 
+    </div>
+
+  </div>
+
+  <!-- PANE: CLASSIFICATION & REGIONAL ANALYTICS -->
+  <div id="subtab-pane-classification" class="log-subtab-pane hidden space-y-6">
+
+    <!-- Top Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Total Turn</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span id="class-stat-total-queries" class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums">0</span>
+          <span class="text-xs font-medium text-gray-500 ml-2">turns</span>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Top Topic</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          </div>
+        </div>
+        <div class="mt-2 truncate">
+          <span id="class-stat-top-category" class="text-base font-extrabold text-gray-900 tracking-tight truncate block" title="-">—</span>
+          <span id="class-stat-top-pct" class="text-xs font-semibold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md mt-1 inline-block">0%</span>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between hover:border-gray-300 transition-all">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500">Position</span>
+          <div class="w-8 h-8 rounded-full border border-gray-200/80 flex items-center justify-center text-gray-400 bg-gray-50/50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+        </div>
+        <div class="mt-2 truncate">
+          <span id="class-stat-top-position" class="text-base font-extrabold text-gray-900 tracking-tight truncate block" title="-">—</span>
+          <span id="class-stat-top-position-pct" class="text-xs font-semibold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md mt-1 inline-block">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Action Bar -->
+    <div class="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs space-y-3">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
+            <span>Query Classification & Regional Distribution</span>
+          </h4>
+          <p class="text-[11px] text-gray-400 mt-0.5">Filter queries by pulau, region, area, branch point, position, account type, or keyword.</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btn-reset-class-filters" type="button" class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-600 shadow-2xs cursor-pointer transition-all">
+            Reset Filters
+          </button>
+          <button id="btn-export-classification-csv" type="button" class="px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-semibold shadow-xs cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Export Classification CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 pt-1">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Pulau</label>
+          <select id="class-filter-pulau" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="ALL">All Pulau</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Region</label>
+          <select id="class-filter-regional" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="ALL">All Regions</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Area</label>
+          <select id="class-filter-area" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="ALL">All Areas</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Branch Point</label>
+          <select id="class-filter-point" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="ALL">All Branch Points</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Position</label>
+          <select id="class-filter-position" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="ALL">All Positions</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Account Type</label>
+          <select id="class-filter-account" class="w-full px-2.5 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none cursor-pointer">
+            <option value="REAL" selected>Real Accounts (User ID &gt; 20)</option>
+            <option value="ALL">All Accounts (Including Testing)</option>
+            <option value="TESTING">Test Accounts (User ID &le; 20)</option>
+          </select>
+        </div>
+        <div class="col-span-2 sm:col-span-2 lg:col-span-1">
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Search Query / Keyword</label>
+          <div class="relative">
+            <input id="class-filter-search" type="text" placeholder="Search queries, topics..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:bg-white focus:outline-none" />
+            <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table: Domain Categories & Verbatim Queries (Moved to Top) -->
+    <div class="rounded-3xl border border-gray-200/80 overflow-hidden shadow-xs bg-white">
+      <div class="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-bold text-gray-900">Domain Classification & Verbatim Queries</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Click expand on any category to view all raw field queries and asker distribution</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-gray-500 font-mono" id="class-table-summary-count">11 Topic Domains</span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50/80 border-b border-gray-200/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+            <tr>
+              <th class="py-3 px-4 w-12 text-center">#</th>
+              <th class="py-3 px-4">Classification & Field Subtopics</th>
+              <th class="py-3 px-4 w-28 text-right">Frequency</th>
+              <th class="py-3 px-4 w-24 text-right">% Total</th>
+              <th class="py-3 px-4 w-44">Pulau Distribution</th>
+              <th class="py-3 px-4 w-48">Position Distribution</th>
+              <th class="py-3 px-4 w-28 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="classification-table-rows" class="divide-y divide-gray-100 text-gray-700">
+            <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading classification records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Geo Distribution Breakdown Row (Moved Below Table) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Card: Sebaran Asal Berdasarkan Pulau & Regional -->
+      <div class="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-900">Geographic Distribution: Pulau & Region</h4>
+            <p class="text-[11px] text-gray-400">Field query distribution across Indonesian islands and operational regions</p>
+          </div>
+          <!-- Percentage Tier Color Legend (Acuan User) -->
+          <div class="flex items-center gap-2 text-[10px] font-mono text-gray-500 font-medium shrink-0 flex-wrap">
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #10b981;"></span>&gt;70%</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #3b82f6;"></span>51–70%</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #f97316;"></span>36–50%</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #f59e0b;"></span>20–35%</span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #ef4444;"></span>&lt;20%</span>
+          </div>
+        </div>
+        <div id="class-geo-islands-container" class="space-y-2.5 pt-1">
+          <div class="text-center py-6 text-xs text-gray-400">Loading island distribution...</div>
+        </div>
+      </div>
+
+      <!-- Card: Top 10 Branch Point & Area Asal Penanya -->
+      <div class="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-900">Top Branch Points & Areas</h4>
+            <p class="text-[11px] text-gray-400">Most active branch points and operational areas</p>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+        </div>
+        <div id="class-geo-points-container" class="space-y-2 pt-1">
+          <div class="text-center py-6 text-xs text-gray-400">Loading branches & areas...</div>
+        </div>
+      </div>
     </div>
 
   </div>
