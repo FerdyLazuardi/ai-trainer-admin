@@ -1,8 +1,12 @@
 ---
 // src/components/tabs/ChatLogsTab.astro
+interface Props {
+  isActive?: boolean;
+}
+const { isActive = false } = Astro.props;
 ---
 
-<div id="tab-content-logs" class="tab-pane hidden space-y-6">
+<div id="tab-content-logs" class={`tab-pane ${!isActive ? 'hidden' : ''} space-y-6`}>
 
   <!-- Sub-Tabs Navigation (Recent Logs | Session Explorer | User LTM | System Prompts) -->
   <div class="flex items-center gap-2 pb-2 border-b border-gray-200/80 overflow-x-auto">

@@ -1,0 +1,218 @@
+---
+// src/components/modals/UserManagementModal.astro
+// Admin-only User Access Management Modal
+---
+
+<dialog id="user-mgmt-modal" class="fixed inset-0 m-auto z-50 max-w-2xl w-[92vw] rounded-3xl bg-white border border-gray-200 text-gray-900 p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-xs">
+  <div class="p-6 sm:p-7 space-y-5">
+    
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+      <div>
+        <h3 class="text-base font-bold text-gray-900">User Access Management</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Review access requests and manage team member permissions</p>
+      </div>
+      <button id="user-mgmt-close" type="button" class="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer" title="Close">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Quick Filter / Summary -->
+    <div class="flex items-center justify-between gap-3 text-xs">
+      <div id="user-mgmt-count" class="font-medium text-gray-500">
+        Loading user records...
+      </div>
+      <button id="btn-refresh-users" type="button" class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-[11px] cursor-pointer transition-colors">
+        Refresh
+      </button>
+    </div>
+
+    <!-- Users List Container -->
+    <div id="user-mgmt-list" class="max-h-[55vh] overflow-y-auto space-y-2 pr-1 divide-y divide-gray-100">
+      <!-- Injected dynamically via script -->
+      <div class="py-8 text-center text-xs text-gray-400">Loading directory...</div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
+      <span>Changes apply immediately to user sessions.</span>
+      <button id="user-mgmt-done" type="button" class="px-4 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-semibold cursor-pointer">
+        Done
+      </button>
+    </div>
+
+  </div>
+</dialog>
+
+<script>
+  // User Management Script
+  const modal = document.getElementById('user-mgmt-modal') as HTMLDialogElement | null;
+  const closeBtn = document.getElementById('user-mgmt-close');
+  const doneBtn = document.getElementById('user-mgmt-done');
+  const refreshBtn = document.getElementById('btn-refresh-users');
+  const listContainer = document.getElementById('user-mgmt-list');
+  const countLabel = document.getElementById('user-mgmt-count');
+
+  export async function loadUsersList() {
+    if (!listContainer || !countLabel) return;
+    countLabel.innerText = 'Fetching directory...';
+
+    try {
+      const res = await fetch('/api/auth/users');
+      if (!res.ok) {
+        listContainer.innerHTML = '<div class="py-6 text-center text-xs text-rose-500">Unauthorized or failed to load users.</div>';
+        return;
+      }
+      const data = await res.json();
+      const users = data.users || [];
+
+      const pendingCount = users.filter((u: any) => u.status === 'PENDING').length;
+      countLabel.innerText = `Total: ${users.length} • Pending: ${pendingCount}`;
+
+      // Update badge in sidebar if present
+      const badge = document.getElementById('admin-pending-badge');
+      if (badge) {
+        if (pendingCount > 0) {
+          badge.innerText = String(pendingCount);
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      if (users.length === 0) {
+        listContainer.innerHTML = '<div class="py-8 text-center text-xs text-gray-400">No user records found.</div>';
+        return;
+      }
+
+      listContainer.innerHTML = users.map((u: any) => {
+        const isPending = u.status === 'PENDING';
+        const isApproved = u.status === 'APPROVED';
+        const isRejected = u.status === 'REJECTED';
+        const isAdmin = u.role === 'ADMIN';
+        const isSuperAdmin = u.approvedBy === 'SYSTEM_SUPER_ADMIN';
+
+        let statusBadge = '';
+        if (isApproved) {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Approved</span>';
+        } else if (isPending) {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">Pending</span>';
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Declined</span>';
+        }
+
+        const roleBadge = isAdmin
+          ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-900 text-white">Admin</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">Member</span>';
+
+        return `
+          <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center shrink-0">
+                ${(u.name || u.email).charAt(0).toUpperCase()}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-gray-900 truncate">${u.name || u.email.split('@')[0]}</span>
+                  ${roleBadge}
+                  ${statusBadge}
+                  ${isSuperAdmin ? '<span class="text-[9px] font-mono text-gray-400">(Super Admin)</span>' : ''}
+                </div>
+                <div class="text-[11px] text-gray-500 font-mono truncate">${u.email}</div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+              ${isPending ? `
+                <button data-action="approve" data-email="${u.email}" class="btn-action-user px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-[11px] font-semibold cursor-pointer transition-colors">
+                  Approve
+                </button>
+                <button data-action="reject" data-email="${u.email}" class="btn-action-user px-2.5 py-1.5 rounded-xl border border-gray-200 hover:bg-rose-50 hover:text-rose-700 text-gray-600 text-[11px] font-medium cursor-pointer transition-colors">
+                  Decline
+                </button>
+              ` : ''}
+
+              ${(!isSuperAdmin && !isPending) ? `
+                <button data-action="toggle_role" data-email="${u.email}" class="btn-action-user px-2.5 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-[11px] font-medium cursor-pointer transition-colors" title="Toggle role">
+                  ${isAdmin ? 'Demote to Member' : 'Promote to Admin'}
+                </button>
+                ${isApproved ? `
+                  <button data-action="reject" data-email="${u.email}" class="btn-action-user px-2.5 py-1.5 rounded-xl border border-gray-200 hover:bg-rose-50 text-rose-600 text-[11px] font-medium cursor-pointer transition-colors" title="Revoke access">
+                    Revoke
+                  </button>
+                ` : `
+                  <button data-action="approve" data-email="${u.email}" class="btn-action-user px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-[11px] font-semibold cursor-pointer transition-colors">
+                    Re-Approve
+                  </button>
+                `}
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach button action listeners
+      document.querySelectorAll('.btn-action-user').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.currentTarget as HTMLButtonElement;
+          const action = target.getAttribute('data-action');
+          const email = target.getAttribute('data-email');
+          if (!action || !email) return;
+
+          target.disabled = true;
+          try {
+            const actRes = await fetch('/api/auth/approve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, action }),
+            });
+            if (actRes.ok) {
+              await loadUsersList();
+            } else {
+              alert('Action failed');
+            }
+          } catch (err) {
+            alert('Network error');
+          } finally {
+            target.disabled = false;
+          }
+        });
+      });
+
+    } catch (err) {
+      listContainer.innerHTML = '<div class="py-6 text-center text-xs text-rose-500">Failed to connect to server.</div>';
+    }
+  }
+
+  // Bind close buttons
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', () => modal.close());
+  }
+  if (doneBtn && modal) {
+    doneBtn.addEventListener('click', () => modal.close());
+  }
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadUsersList);
+  }
+
+  // Open modal trigger from anywhere
+  (window as any).openUserManagementModal = () => {
+    if (modal) {
+      modal.showModal();
+      loadUsersList();
+    }
+  };
+
+  // Expose check on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const trigger = document.getElementById('btn-open-user-mgmt');
+    if (trigger) {
+      trigger.addEventListener('click', () => {
+        (window as any).openUserManagementModal();
+      });
+      // Initial background count load
+      loadUsersList();
+    }
+  });
+</script>

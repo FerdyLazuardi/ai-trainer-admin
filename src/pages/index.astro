@@ -1,5 +1,8 @@
 ---
+// src/pages/index.astro
 import '../styles/global.css';
+import { AUTH_SECRET } from 'astro:env/server';
+import { verifySession, SESSION_COOKIE_NAME } from '../lib/auth';
 
 // Layout & UI Components
 import Toast from '../components/ui/Toast.astro';
@@ -11,6 +14,8 @@ import Header from '../components/layout/Header.astro';
 import DetailModal from '../components/modals/DetailModal.astro';
 import ThreadModal from '../components/modals/ThreadModal.astro';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal.astro';
+import UserManagementModal from '../components/modals/UserManagementModal.astro';
+import ConfirmSignOutModal from '../components/modals/ConfirmSignOutModal.astro';
 
 // Feature Tabs
 import SpreadsheetSyncTab from '../components/tabs/SpreadsheetSyncTab.astro';
@@ -20,8 +25,24 @@ import SpreadsheetKpiTab from '../components/tabs/SpreadsheetKpiTab.astro';
 import ActiveKnowledgeTab from '../components/tabs/ActiveKnowledgeTab.astro';
 import SystemPromptsTab from '../components/tabs/SystemPromptsTab.astro';
 
-// Read Cloudflare Zero Trust authenticated identity if available
-const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email') || 'operator@amartha.com';
+// Authenticate session from middleware or cookie
+const authSecret = AUTH_SECRET || (process.env.AUTH_SECRET ?? 'amartha_cag_secret_session_token_key_2026');
+const cookieVal = Astro.cookies.get(SESSION_COOKIE_NAME)?.value;
+const user = (Astro.locals as any).user || (await verifySession(cookieVal, authSecret));
+
+if (!user || user.status !== 'APPROVED') {
+  return Astro.redirect('/login');
+}
+
+const userEmail = user.email;
+const userName = user.name || userEmail.split('@')[0];
+const userRole = user.role || 'MEMBER';
+const isAdmin = userRole === 'ADMIN';
+
+const initialTitle = isAdmin ? 'Spreadsheet Sync' : 'Chat Logs & Analytics';
+const initialSubtitle = isAdmin
+  ? 'Automated synchronization and telemetry management'
+  : 'Audited turns, intent distribution, and LLM telemetry';
 ---
 
 <!DOCTYPE html>
@@ -43,7 +64,7 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
 <body class="bg-[#F3F4F6] text-gray-900 min-h-screen lg:h-screen lg:overflow-hidden antialiased p-0 lg:p-5 flex flex-col lg:flex-row gap-0 lg:gap-5 font-sans selection:bg-gray-900/10 selection:text-gray-900">
 
   <!-- Mobile Sticky Top Navbar & Backdrop -->
-  <MobileNavbar />
+  <MobileNavbar initialTitle={initialTitle} />
 
   <!-- Toast Notification Overlay -->
   <Toast />
@@ -52,19 +73,25 @@ const userEmail = Astro.request.headers.get('cf-access-authenticated-user-email'
   <DetailModal />
   <ThreadModal />
   <ConfirmDeleteModal />
+  <ConfirmSignOutModal />
+  {isAdmin && <UserManagementModal />}
 
   <!-- Left Navigation Sidebar -->
-  <Sidebar />
+  <Sidebar userRole={userRole} userEmail={userEmail} userName={userName} />
 
   <!-- Main Content Canvas -->
   <main class="flex-1 bg-white lg:rounded-3xl border-t lg:border border-gray-200/80 shadow-sm p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:h-full lg:overflow-y-auto min-w-0 m-2 sm:m-3 lg:m-0 rounded-2xl">
     <!-- Top Header -->
-    <Header />
+    <Header initialTitle={initialTitle} initialSubtitle={initialSubtitle} />
 
-    <!-- Feature Tab Panels -->
-    <SpreadsheetSyncTab />
-    <ConvertIngestTab />
-    <ChatLogsTab />
+    <!-- Feature Tab Panels: Ingestion tabs only accessible to Admins -->
+    {isAdmin && (
+      <>
+        <SpreadsheetSyncTab />
+        <ConvertIngestTab />
+      </>
+    )}
+    <ChatLogsTab isActive={!isAdmin} />
     <SpreadsheetKpiTab />
     <ActiveKnowledgeTab />
     <SystemPromptsTab />

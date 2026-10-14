@@ -59,6 +59,22 @@ body {
     width: 1.25rem !important;
     height: 1.25rem !important;
   }
+  #main-sidebar.is-collapsed #btn-sidebar-logout {
+    display: none !important;
+  }
+  #main-sidebar.is-collapsed #btn-open-user-mgmt {
+    display: none !important;
+  }
+  #main-sidebar.is-collapsed #sidebar-user-card {
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  #main-sidebar.is-collapsed #sidebar-bottom-section {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
 }
 
 /* Mobile responsive slide drawer */

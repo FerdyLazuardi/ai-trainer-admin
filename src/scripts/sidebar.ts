@@ -98,6 +98,12 @@ export function initSidebar(onTabChanged?: (newTab: string) => void) {
     mobileBackdrop.addEventListener('click', closeMobileSidebar);
   }
 
+  // Determine initial activeTab based on user role
+  const userRole = mainSidebar?.getAttribute('data-user-role') || 'MEMBER';
+  if (userRole !== 'ADMIN') {
+    activeTab = 'logs';
+  }
+
   // Tab Switching
   const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-btn');
   const tabPanes = document.querySelectorAll<HTMLElement>('.tab-pane');
@@ -106,7 +112,7 @@ export function initSidebar(onTabChanged?: (newTab: string) => void) {
 
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      const tab = btn.getAttribute('data-tab') || 'sync';
+      const tab = btn.getAttribute('data-tab') || (userRole === 'ADMIN' ? 'sync' : 'logs');
       switchTab(tab);
     });
   });
@@ -115,6 +121,14 @@ export function initSidebar(onTabChanged?: (newTab: string) => void) {
 }
 
 export function switchTab(tab: string) {
+  const mainSidebar = document.getElementById('main-sidebar');
+  const userRole = mainSidebar?.getAttribute('data-user-role') || 'MEMBER';
+
+  // Prevent non-admins from switching to Ingestion tabs
+  if (userRole !== 'ADMIN' && (tab === 'sync' || tab === 'convert')) {
+    tab = 'logs';
+  }
+
   if (tab === activeTab) {
     if (window.innerWidth < 1024) closeMobileSidebar();
     return;

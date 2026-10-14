@@ -1,10 +1,22 @@
 ---
+// src/components/layout/Header.astro
 // Main Canvas Top Header (Title, Subtitle, WIB Clock, Refresh)
+
+interface Props {
+  initialTitle?: string;
+  initialSubtitle?: string;
+}
+
+const {
+  initialTitle = 'Spreadsheet Sync',
+  initialSubtitle = 'Automated synchronization and telemetry management',
+} = Astro.props;
 ---
+
 <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
   <div>
-    <h1 id="page-title" class="text-2xl font-extrabold text-gray-900 tracking-tight">Spreadsheet Sync</h1>
-    <p id="page-subtitle" class="text-xs text-gray-400 mt-0.5">Automated synchronization and telemetry management</p>
+    <h1 id="page-title" class="text-2xl font-extrabold text-gray-900 tracking-tight">{initialTitle}</h1>
+    <p id="page-subtitle" class="text-xs text-gray-400 mt-0.5">{initialSubtitle}</p>
   </div>
 
   <!-- Top Tools & Badges -->

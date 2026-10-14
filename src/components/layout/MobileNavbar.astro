@@ -1,6 +1,14 @@
 ---
+// src/components/layout/MobileNavbar.astro
 // Mobile Sticky Top Navbar & Backdrop
+
+interface Props {
+  initialTitle?: string;
+}
+
+const { initialTitle = 'Spreadsheet Sync' } = Astro.props;
 ---
+
 <header id="mobile-navbar" class="lg:hidden sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-200/80 px-4 py-3 flex items-center justify-between">
   <div class="flex items-center gap-3 min-w-0">
     <button id="mobile-menu-toggle" title="Open Navigation Menu" class="w-8 h-8 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 flex items-center justify-center cursor-pointer transition-all shrink-0">
@@ -10,7 +18,7 @@
     </button>
 
     <div class="min-w-0">
-      <div id="mobile-header-title" class="font-extrabold text-sm text-gray-900 tracking-tight leading-tight">Spreadsheet Sync</div>
+      <div id="mobile-header-title" class="font-extrabold text-sm text-gray-900 tracking-tight leading-tight">{initialTitle}</div>
       <div class="font-bold text-[10px] text-gray-500 tracking-wide leading-tight mt-0.5">Ai - Trainer</div>
     </div>
   </div>

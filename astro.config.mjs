@@ -56,6 +56,30 @@ export default defineConfig({
         optional: true,
         default: 'oc/mimo-v2.5-free',
       }),
+      GOOGLE_CLIENT_ID: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: '',
+      }),
+      GOOGLE_CLIENT_SECRET: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: '',
+      }),
+      SUPER_ADMIN_EMAILS: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: 'ferdy.lazuardi@amartha.com,anggit.furqon@amartha.com',
+      }),
+      AUTH_SECRET: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+        default: 'amartha_cag_secret_session_token_key_2026',
+      }),
     },
   },
   vite: {

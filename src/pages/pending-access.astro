@@ -1,0 +1,139 @@
+---
+// src/pages/pending-access.astro
+import '../styles/global.css';
+import { AUTH_SECRET } from 'astro:env/server';
+import { verifySession, SESSION_COOKIE_NAME } from '../lib/auth';
+
+const authSecret = AUTH_SECRET || (process.env.AUTH_SECRET ?? 'amartha_cag_secret_session_token_key_2026');
+const cookieVal = Astro.cookies.get(SESSION_COOKIE_NAME)?.value;
+const session = await verifySession(cookieVal, authSecret);
+
+if (!session) {
+  return Astro.redirect('/login');
+}
+
+if (session.status === 'APPROVED') {
+  return Astro.redirect('/');
+}
+
+const userEmail = session.email;
+const userName = session.name || userEmail.split('@')[0];
+const isRejected = session.status === 'REJECTED';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access Review • Dashboard Ai - Trainer</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body class="bg-[#F3F4F6] text-gray-900 min-h-screen flex items-center justify-center p-4 antialiased selection:bg-gray-900/10 selection:text-gray-900 font-sans">
+  
+  <div class="w-full max-w-sm sm:max-w-md">
+    <!-- Main Card -->
+    <div class="bg-white rounded-3xl border border-gray-200/80 shadow-sm p-6 sm:p-9 flex flex-col items-center text-center">
+      
+      <!-- Logo -->
+      <div class="mb-4 flex flex-col items-center">
+        <img src="/amartha.svg" alt="Amartha" class="h-8 w-auto object-contain" />
+      </div>
+
+      <!-- Current Identity Card -->
+      <div class="w-full p-3.5 mb-5 rounded-2xl bg-gray-50 border border-gray-200/70 flex items-center gap-3 text-left">
+        <div class="w-9 h-9 rounded-full bg-gray-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
+          {userName.charAt(0).toUpperCase()}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold text-gray-900 truncate">{userName}</div>
+          <div class="text-[11px] text-gray-500 font-mono truncate">{userEmail}</div>
+        </div>
+      </div>
+
+      <!-- Status Header -->
+      <div class="mb-3">
+        {isRejected ? (
+          <span class="inline-flex items-center px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold">
+            Access Declined
+          </span>
+        ) : (
+          <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+            Pending Approval
+          </span>
+        )}
+      </div>
+
+      <h1 class="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight leading-tight mb-2">
+        {isRejected ? 'Access Not Granted' : 'Approval In Progress'}
+      </h1>
+
+      <p class="text-xs text-gray-500 mb-6 leading-relaxed max-w-xs">
+        {isRejected ? (
+          'Your access request has been reviewed and declined. Please contact your administrator if you require permissions.'
+        ) : (
+          'Your account request has been registered and is waiting for administrator approval before dashboard access can be granted.'
+        )}
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="w-full space-y-2.5">
+        {!isRejected && (
+          <button
+            id="btn-recheck-status"
+            type="button"
+            class="w-full py-2.5 px-4 rounded-full bg-gray-900 hover:bg-black active:scale-[0.99] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+          >
+            Check Status
+          </button>
+        )}
+
+        <a
+          href="/api/auth/logout"
+          class="w-full inline-flex items-center justify-center py-2.5 px-4 rounded-full border border-gray-200/90 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-all cursor-pointer"
+        >
+          Sign in with another account
+        </a>
+      </div>
+
+      <!-- Info note -->
+      <div class="mt-6 pt-5 border-t border-gray-100 w-full text-center">
+        <p class="text-[11px] text-gray-400">
+          Administrator is notified upon request registration.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const recheckBtn = document.getElementById('btn-recheck-status');
+    if (recheckBtn) {
+      recheckBtn.addEventListener('click', async () => {
+        recheckBtn.setAttribute('disabled', 'true');
+        recheckBtn.innerText = 'Checking...';
+
+        try {
+          const res = await fetch('/api/auth/request-access', { method: 'POST' });
+          const data = await res.json();
+          if (data.status === 'APPROVED') {
+            window.location.href = '/';
+          } else {
+            recheckBtn.removeAttribute('disabled');
+            recheckBtn.innerText = 'Still Pending • Click to re-check';
+          }
+        } catch (err) {
+          recheckBtn.removeAttribute('disabled');
+          recheckBtn.innerText = 'Check Status';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

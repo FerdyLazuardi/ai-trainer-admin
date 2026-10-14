@@ -66,8 +66,14 @@ function init() {
     });
   }
 
-  // 5. Default View Initial Load
-  loadSyncTelemetry();
+  // 5. Default View Initial Load (Role-Aware)
+  const mainSidebar = document.getElementById('main-sidebar');
+  const userRole = mainSidebar?.getAttribute('data-user-role') || 'MEMBER';
+  if (userRole === 'ADMIN') {
+    loadSyncTelemetry();
+  } else {
+    loadChatLogs();
+  }
 }
 
 if (document.readyState === 'loading') {
