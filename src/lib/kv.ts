@@ -35,14 +35,16 @@ async function getKvBinding(locals?: any): Promise<any> {
   // 1. Try modern Astro v5+ / Cloudflare Workers binding
   try {
     const cf = await import('cloudflare:workers');
-    if (cf?.env && (cf.env as any).AUTH_KV) {
-      return (cf.env as any).AUTH_KV;
+    if (cf?.env) {
+      if ((cf.env as any).AUTH_KV) return (cf.env as any).AUTH_KV;
+      if ((cf.env as any).SESSION) return (cf.env as any).SESSION;
     }
   } catch {}
 
   // 2. Fallback check on process.env or global
-  if (typeof process !== 'undefined' && (process.env as any)?.AUTH_KV) {
-    return (process.env as any).AUTH_KV;
+  if (typeof process !== 'undefined') {
+    if ((process.env as any)?.AUTH_KV) return (process.env as any).AUTH_KV;
+    if ((process.env as any)?.SESSION) return (process.env as any).SESSION;
   }
 
   return null;
