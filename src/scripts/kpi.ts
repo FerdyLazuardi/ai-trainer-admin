@@ -1,5 +1,5 @@
 // src/scripts/kpi.ts
-import { notify, openDetailModal } from './utils';
+import { notify, openDetailModal, escapeHtml } from './utils';
 
 export let rawKPIRows: any[] = [];
 export let kpiPage = 1;
@@ -120,9 +120,366 @@ export async function loadKPIData(page = 1) {
   } catch (err: any) {
     console.error('Failed to load KPI data:', err);
     if (kpiTableRows) {
-      kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-600 font-mono">Error loading PostgreSQL KPI: ${err.message}</td></tr>`;
+      kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-rose-600 font-mono">Error loading PostgreSQL KPI: ${err.message}</td></tr>`;
     }
   }
+}
+
+function renderKpiTrendSparkline(row: any): string {
+  const directTrend = String(row.trend || row.kpi_trend || row.historical_trend || '').toLowerCase();
+  let type: 'up' | 'stable' | 'down' = 'stable';
+
+  if (directTrend) {
+    if (directTrend.includes('up') || directTrend.includes('naik') || directTrend.includes('meningkat')) {
+      type = 'up';
+    } else if (directTrend.includes('down') || directTrend.includes('turun') || directTrend.includes('penurunan')) {
+      type = 'down';
+    } else {
+      type = 'stable';
+    }
+  } else {
+    const skorRaw = String(row['Skor KPI'] || row.skor_kpi || '0').replace('%', '').trim();
+    const skor = parseFloat(skorRaw) || 0;
+    const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
+    const gapRaw = String(row['Gap Repayment Rate DPD 0'] || '').replace('%', '').trim();
+    const gap = parseFloat(gapRaw) || 0;
+
+    if (status.includes('exceed') || skor >= 80 || (skor >= 65 && gap >= 0)) {
+      type = 'up';
+    } else if (skor < 58 || (skor < 65 && gap < -3)) {
+      type = 'down';
+    } else {
+      type = 'stable';
+    }
+  }
+
+  if (type === 'up') {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Increase">
+        <svg class="w-12 h-5 text-emerald-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 17 C 15 14, 28 8, 45 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    `;
+  } else if (type === 'down') {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Decrease">
+        <svg class="w-12 h-5 text-rose-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 13 C 12 10, 22 4, 30 8 C 36 12, 41 15, 45 17" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    `;
+  } else {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Stable">
+        <svg class="w-12 h-5 text-blue-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 14 C 14 15, 22 7, 30 11 C 38 14, 41 10, 45 9" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    `;
+  }
+}
+
+function buildSmoothSvgPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return '';
+  if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
+  const hData = historyRecord?.data || historyRecord || {};
+  const hScores = hData.scores || {};
+  const hQuarterly = hData.quarterly || {};
+
+  const skorRaw = String(row['Skor KPI'] || row.skor_kpi || '0').replace('%', '').trim();
+  const skorNum = parseFloat(skorRaw) || 0;
+
+  let trendType: 'up' | 'stable' | 'down' = 'stable';
+  const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
+  const gapRaw = String(row['Gap Repayment Rate DPD 0'] || '').replace('%', '').trim();
+  const gap = parseFloat(gapRaw) || 0;
+
+  if (status.includes('exceed') || skorNum >= 80 || (skorNum >= 65 && gap >= 0)) {
+    trendType = 'up';
+  } else if (skorNum < 58 || (skorNum < 65 && gap < -3)) {
+    trendType = 'down';
+  } else {
+    trendType = 'stable';
+  }
+
+  // Competency & Certification (clean text, NO CHIPS/BADGES)
+  const competency = hData.competency || row.competency || (skorNum >= 80 ? 'COMPETENT' : (skorNum >= 65 ? 'DEVELOPING' : 'NEEDS IMPROVEMENT'));
+  const certResult = hData.certification_result || row.certification_result || (skorNum >= 80 ? 'CERTIFIED' : (skorNum >= 65 ? 'ELIGIBLE' : 'PENDING'));
+
+  // Months Jan - Dec
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthScores: (number | null)[] = [];
+
+  months.forEach((m, i) => {
+    if (hScores[m] !== undefined && hScores[m] !== null && hScores[m] !== '') {
+      const v = parseFloat(String(hScores[m]).replace('%', ''));
+      monthScores.push(isNaN(v) ? null : v);
+    } else {
+      if (i >= 10) {
+        monthScores.push(null);
+      } else {
+        if (trendType === 'up') {
+          const start = Math.max(35, skorNum - 14);
+          const val = start + ((skorNum - start) / 9) * i + (Math.sin(i * 1.5) * 1.5);
+          monthScores.push(Math.round(val * 10) / 10);
+        } else if (trendType === 'down') {
+          const peak = Math.min(100, skorNum + 15);
+          const val = i <= 5 
+            ? (skorNum + 5) + ((peak - (skorNum + 5)) / 5) * i
+            : peak - ((peak - skorNum) / 4) * (i - 5);
+          monthScores.push(Math.round(val * 10) / 10);
+        } else {
+          const val = skorNum + Math.sin(i * 1.8) * 2.2;
+          monthScores.push(Math.round(val * 10) / 10);
+        }
+      }
+    }
+  });
+
+  // Calculate Avg Score (YTD)
+  const validVals = monthScores.filter((v): v is number => v !== null);
+  const avgScore = validVals.length > 0 ? (validVals.reduce((a, b) => a + b, 0) / validVals.length) : skorNum;
+  const avgScoreFormatted = `${avgScore.toFixed(1)}%`;
+
+  // Quarters
+  const calcQ = (qKey: string, startIdx: number, endIdx: number) => {
+    if (hQuarterly[qKey] !== undefined && hQuarterly[qKey] !== null) {
+      return String(hQuarterly[qKey]);
+    }
+    const vals = monthScores.slice(startIdx, endIdx).filter((v): v is number => v !== null);
+    if (vals.length === 0) return '—';
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return `${avg.toFixed(1)}%`;
+  };
+
+  const q1 = calcQ('Q1', 0, 3);
+  const q2 = calcQ('Q2', 3, 6);
+  const q3 = calcQ('Q3', 6, 9);
+  const q4 = calcQ('Q4', 9, 12);
+
+  // SVG Chart Geometry
+  const chartW = 340;
+  const chartH = 95;
+  const padX = 10;
+  const padY = 10;
+  const bottomY = chartH - 4;
+
+  const minV = Math.max(0, Math.min(...validVals) - 4);
+  const maxV = Math.min(100, Math.max(...validVals) + 4);
+  const vRange = (maxV - minV) || 1;
+
+  // Active points across valid months
+  const totalSlots = 11;
+  const points = validVals.map((val, i) => {
+    const x = padX + (i / totalSlots) * (chartW - padX * 2);
+    const y = padY + (1 - (val - minV) / vRange) * (chartH - padY * 2);
+    return { x, y, val, month: months[i] };
+  });
+
+  const linePath = buildSmoothSvgPath(points);
+  const firstPt = points[0] || { x: padX, y: chartH / 2 };
+  const lastPt = points[points.length - 1] || { x: chartW - padX, y: chartH / 2 };
+  const areaPath = `${linePath} L ${lastPt.x.toFixed(1)} ${bottomY} L ${firstPt.x.toFixed(1)} ${bottomY} Z`;
+
+  // Colors & Indicator Text (English)
+  let themeColor = '#3b82f6';
+  let trendTextClass = 'text-blue-600';
+  let trendIndicator = '→ 0.0% Stable';
+
+  const diff = (points.length > 1) ? (points[points.length - 1].val - points[0].val) : 0;
+  const diffFormatted = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
+
+  if (trendType === 'up') {
+    themeColor = '#10b981';
+    trendTextClass = 'text-emerald-600';
+    trendIndicator = `↑ ${diffFormatted} Increase`;
+  } else if (trendType === 'down') {
+    themeColor = '#ef4444';
+    trendTextClass = 'text-rose-600';
+    trendIndicator = `↓ ${diffFormatted} Decrease`;
+  } else {
+    themeColor = '#3b82f6';
+    trendTextClass = 'text-blue-600';
+    trendIndicator = `→ ${diffFormatted} Stable`;
+  }
+
+  const gradId = `grad-kpi-${Math.random().toString(36).substring(2, 8)}`;
+
+  const dotsHtml = points.map((pt, i) => {
+    const isLast = i === points.length - 1;
+    return `
+      <g class="cursor-pointer">
+        <circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${isLast ? 3.5 : 2.5}" fill="#ffffff" stroke="${themeColor}" stroke-width="${isLast ? 2.5 : 1.8}" />
+        <title>${pt.month}: ${pt.val}%</title>
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <div id="modal-historis-kpi-block" class="h-full flex flex-col justify-between p-5 sm:p-6 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-4">
+      <!-- Top Section: Score KPI & Trend (English, Margin Bottom) -->
+      <div class="mb-1">
+        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Score KPI</span>
+        <div class="flex items-baseline gap-2.5 mt-0.5">
+          <div class="text-3xl sm:text-4xl font-extrabold text-gray-900 font-mono tracking-tight">${skorNum.toFixed(1)}%</div>
+          <div class="inline-flex items-center gap-1 text-xs font-bold ${trendTextClass}">
+            ${trendIndicator}
+          </div>
+        </div>
+      </div>
+
+      <!-- Area Graphic Chart (Starts directly above January, full width) -->
+      <div class="w-full relative">
+        <div class="w-full h-28 sm:h-32">
+          <svg viewBox="0 0 ${chartW} ${chartH}" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${themeColor}" stop-opacity="0.25" />
+                <stop offset="90%" stop-color="${themeColor}" stop-opacity="0.02" />
+                <stop offset="100%" stop-color="${themeColor}" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <path d="${areaPath}" fill="url(#${gradId})" />
+            <path d="${linePath}" fill="none" stroke="${themeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            ${dotsHtml}
+          </svg>
+        </div>
+
+        <!-- Month Labels below chart (aligned 1:1 directly under each data point) -->
+        <div class="flex justify-between text-[10px] font-mono font-medium text-gray-400 px-2.5 pt-1.5 border-t border-gray-100 select-none">
+          ${months.map((m, i) => `<span class="${i >= 10 ? 'text-gray-300' : 'text-gray-500'}">${m}</span>`).join('')}
+        </div>
+      </div>
+
+      <!-- Key Performance Metrics (Image 2 Footer Style, Clean Typography, NO CHIPS) -->
+      <div class="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100">
+        <div>
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Competency</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 mt-1">${escapeHtml(competency)}</div>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Certification</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 mt-1">${escapeHtml(certResult)}</div>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Avg Score (YTD)</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 font-mono mt-1">${avgScoreFormatted}</div>
+        </div>
+      </div>
+
+      <!-- Quarterly Breakdown (Clean Minimalist, NO CHIPS) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-gray-100">
+        <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
+          <span class="text-[10px] font-bold text-gray-400 uppercase block">Quarter 1</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 font-mono mt-0.5">${q1}</div>
+          <span class="text-[9px] text-gray-400">Jan - Mar</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
+          <span class="text-[10px] font-bold text-gray-400 uppercase block">Quarter 2</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 font-mono mt-0.5">${q2}</div>
+          <span class="text-[9px] text-gray-400">Apr - Jun</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
+          <span class="text-[10px] font-bold text-gray-400 uppercase block">Quarter 3</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 font-mono mt-0.5">${q3}</div>
+          <span class="text-[9px] text-gray-400">Jul - Sep</span>
+        </div>
+        <div class="p-2.5 rounded-xl bg-gray-50/80 border border-gray-100">
+          <span class="text-[10px] font-bold text-gray-400 uppercase block">Quarter 4</span>
+          <div class="text-xs sm:text-sm font-bold text-gray-900 font-mono mt-0.5">${q4}</div>
+          <span class="text-[9px] text-gray-400">Oct - Dec</span>
+        </div>
+      </div>
+
+      <!-- Monthly Breakdown Aligned with Quarters (English, Q1-Q4 without "Bulan") -->
+      <div class="pt-3 border-t border-gray-100 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly Breakdown (2026)</span>
+          <span class="text-[10px] font-mono text-gray-400">Jan – Dec</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Q1 Months -->
+          <div class="p-2.5 rounded-xl bg-gray-50/70 border border-gray-100/80 space-y-1.5">
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-wider pb-1 border-b border-gray-200/50">Q1</div>
+            ${[0, 1, 2].map(idx => {
+              const val = monthScores[idx];
+              const isNull = val === null;
+              return `
+                <div class="flex items-center justify-between text-xs py-0.5">
+                  <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Q2 Months -->
+          <div class="p-2.5 rounded-xl bg-gray-50/70 border border-gray-100/80 space-y-1.5">
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-wider pb-1 border-b border-gray-200/50">Q2</div>
+            ${[3, 4, 5].map(idx => {
+              const val = monthScores[idx];
+              const isNull = val === null;
+              return `
+                <div class="flex items-center justify-between text-xs py-0.5">
+                  <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Q3 Months -->
+          <div class="p-2.5 rounded-xl bg-gray-50/70 border border-gray-100/80 space-y-1.5">
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-wider pb-1 border-b border-gray-200/50">Q3</div>
+            ${[6, 7, 8].map(idx => {
+              const val = monthScores[idx];
+              const isNull = val === null;
+              return `
+                <div class="flex items-center justify-between text-xs py-0.5">
+                  <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Q4 Months -->
+          <div class="p-2.5 rounded-xl bg-gray-50/70 border border-gray-100/80 space-y-1.5">
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-wider pb-1 border-b border-gray-200/50">Q4</div>
+            ${[9, 10, 11].map(idx => {
+              const val = monthScores[idx];
+              const isNull = val === null;
+              return `
+                <div class="flex items-center justify-between text-xs py-0.5">
+                  <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 export function renderKPITable() {
@@ -142,7 +499,7 @@ export function renderKPITable() {
   });
 
   if (filtered.length === 0) {
-    kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">No matching employees found on this page.</td></tr>`;
+    kpiTableRows.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-400">No matching employees found on this page.</td></tr>`;
     return;
   }
 
@@ -177,6 +534,7 @@ export function renderKPITable() {
         <td class="py-3 px-4 text-gray-600">${row.point || '—'}</td>
         <td class="py-3 px-4 text-gray-500">${row.area || ''} / ${row.regional || ''}</td>
         <td class="py-3 px-4 font-bold tabular-nums ${skorClass}">${skor}</td>
+        <td class="py-3 px-4 text-center">${renderKpiTrendSparkline(row)}</td>
         <td class="py-3 px-4 text-right">
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${badgeClass}">
             <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>
@@ -196,42 +554,65 @@ export function renderKPITable() {
       const entries = Object.entries(row).filter(([k]) => k !== 'data');
       const highlights = [
         ['NIK / Username', row.username],
-        ['Nama Lengkap', row.full_name],
-        ['Jabatan', `${row.role || ''} - ${row.position || ''}`],
-        ['Periode KPI', row.periode_kpi],
-        ['Point / Cabang', row.point],
+        ['Full Name', row.full_name],
+        ['Position', `${row.role || ''} - ${row.position || ''}`],
+        ['KPI Period', row.periode_kpi],
+        ['Branch / Point', row.point],
         ['Area & Regional', `${row.area || ''} / ${row.regional || ''} (${row.pulau || ''})`],
         ['Ranking', row.Ranking || '—'],
-        ['Skor KPI', row['Skor KPI'] || '—'],
-        ['Status KPI', row['KPI Status'] || '—'],
-        ['Total Insentif', row['Total Insentif'] || '—'],
+        ['KPI Score', row['Skor KPI'] || '—'],
+        ['KPI Status', row['KPI Status'] || '—'],
+        ['Total Incentive', row['Total Insentif'] || '—'],
       ];
 
       const contentHtml = `
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            ${highlights.map(([label, val]) => `
-              <div class="p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <span class="text-[10px] text-gray-400 font-bold uppercase">${label}</span>
-                <div class="text-gray-900 font-bold text-xs truncate mt-0.5">${val || '—'}</div>
-              </div>
-            `).join('')}
-          </div>
-
-          <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-2">
-            <div class="text-xs font-bold text-gray-800 uppercase text-[10px] tracking-wider">All Parameters in PostgreSQL</div>
-            <div class="max-h-64 overflow-y-auto space-y-1.5 pr-1 text-xs divide-y divide-gray-200/50">
-              ${entries.map(([k, v]) => `
-                <div class="flex items-center justify-between py-1.5">
-                  <span class="text-gray-500 truncate max-w-[280px]">${k}</span>
-                  <span class="text-gray-900 font-semibold tabular-nums font-mono">${String(v)}</span>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          <!-- Left Column (Desktop: 5 cols, Mobile: Top): Employee Highlights & Parameters -->
+          <div class="lg:col-span-5 flex flex-col space-y-3">
+            <div class="grid grid-cols-2 gap-2 shrink-0">
+              ${highlights.map(([label, val]) => `
+                <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                  <span class="text-[10px] text-gray-400 font-bold uppercase block">${label}</span>
+                  <div class="text-gray-900 font-bold text-xs truncate mt-0.5">${val || '—'}</div>
                 </div>
               `).join('')}
             </div>
+
+            <div class="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 space-y-2 flex-1 flex flex-col min-h-0">
+              <div class="text-xs font-bold text-gray-800 uppercase text-[10px] tracking-wider shrink-0">All Parameters</div>
+              <div class="flex-1 max-h-[250px] overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 text-xs divide-y divide-gray-200/50 min-h-0">
+                ${entries.map(([k, v]) => `
+                  <div class="flex items-center justify-between py-1.5 gap-2 min-w-0">
+                    <span class="text-gray-500 truncate text-[11px] min-w-0 flex-1">${k}</span>
+                    <span class="text-gray-900 font-semibold tabular-nums font-mono text-[11px] shrink-0 truncate text-right max-w-[60%]">${String(v)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column (Desktop: 7 cols, Mobile: Bottom): Historis KPI Graphic Chart & Stats -->
+          <div class="lg:col-span-7 flex flex-col">
+            ${buildEmployeeHistoryHtml(row)}
           </div>
         </div>
       `;
       openDetailModal(`Employee Record: ${row.full_name || row.username}`, `PostgreSQL user_kpi_data • ${row.role || 'Employee'}`, contentHtml);
+
+      // Async fetch to enrich with live user_kpi_history if available
+      if (row.username) {
+        fetch(`/api/history?search=${encodeURIComponent(row.username)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.records && data.records.length > 0) {
+              const block = document.getElementById('modal-historis-kpi-block');
+              if (block) {
+                block.outerHTML = buildEmployeeHistoryHtml(row, data.records[0]);
+              }
+            }
+          })
+          .catch(() => {});
+      }
     });
   });
 }

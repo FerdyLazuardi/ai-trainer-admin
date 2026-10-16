@@ -103,14 +103,56 @@ const { isActive = false } = Astro.props;
         </div>
       </div>
 
-      <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0 overflow-hidden">
-        <div class="flex items-center justify-between pb-2 border-b border-gray-200/60">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">Daily Request Trends</h3>
-          <span class="text-[11px] text-gray-400 font-mono">Last 30 Days</span>
+      <div class="lg:col-span-6 p-5 rounded-3xl bg-gray-50/70 border border-gray-200/80 space-y-3 min-w-0 overflow-hidden flex flex-col justify-between">
+        <!-- Header with Title and Zoom Controls -->
+        <div class="flex flex-wrap items-center justify-between pb-2 border-b border-gray-200/60 gap-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 shrink-0">Daily Request Trends</h3>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Zoom Controls Group -->
+            <div class="inline-flex items-center bg-white border border-gray-200/90 rounded-xl p-0.5 shadow-2xs">
+              <button
+                id="btn-trends-zoom-out"
+                type="button"
+                title="Zoom Out (-)"
+                class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+              </button>
+              <span id="trends-zoom-level" class="text-[10px] font-mono font-bold text-gray-700 px-1.5 select-none min-w-[28px] text-center">Fit</span>
+              <button
+                id="btn-trends-zoom-in"
+                type="button"
+                title="Zoom In (+)"
+                class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              </button>
+              <button
+                id="btn-trends-zoom-reset"
+                type="button"
+                title="Fit to Screen"
+                class="px-2 py-0.5 text-[10px] font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg cursor-pointer transition-all border-l border-gray-100"
+              >
+                Fit
+              </button>
+            </div>
+            <span class="text-[11px] text-gray-400 font-mono hidden md:inline">Last 30 Days</span>
+          </div>
         </div>
-        <div class="w-full overflow-x-auto pb-2 -mb-2">
-          <div id="trends-chart-container" class="h-48 flex items-end gap-1.5 sm:gap-2 pt-4 pb-2 min-w-[500px] lg:min-w-0 w-full">
-            <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+
+        <!-- Scrollable Chart Canvas -->
+        <div id="trends-scroll-area" class="w-full overflow-x-auto pb-2 -mb-2 custom-chart-scrollbar transition-all">
+          <div id="trends-chart-wrapper" class="relative w-full">
+            <!-- Subtle Reference Grid Lines -->
+            <div id="trends-grid-lines" class="absolute inset-0 pointer-events-none flex flex-col justify-between pb-7 pt-4 text-[9px] font-mono text-gray-300"></div>
+
+            <!-- Bars Container -->
+            <div id="trends-chart-container" class="relative z-10 h-52 flex items-end pt-8 pb-1 w-full transition-all">
+              <div class="w-full text-gray-400 text-xs text-center self-center">Loading trend data...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -462,3 +504,20 @@ const { isActive = false } = Astro.props;
   </div>
 
 </div>
+
+<style>
+  .custom-chart-scrollbar::-webkit-scrollbar {
+    height: 6px;
+  }
+  .custom-chart-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 9999px;
+  }
+  .custom-chart-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 9999px;
+  }
+  .custom-chart-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.35);
+  }
+</style>

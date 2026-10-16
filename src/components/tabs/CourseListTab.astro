@@ -1,0 +1,96 @@
+---
+// src/components/tabs/CourseListTab.astro
+---
+
+<div id="tab-content-courses" class="tab-pane hidden space-y-6">
+
+  <!-- Header & Filter Bar -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
+    <div>
+      <div class="flex items-center gap-3">
+        <h2 class="text-base sm:text-lg font-bold text-gray-900 tracking-tight">Course List</h2>
+        <span id="courses-count-badge" class="px-2.5 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700 font-mono text-[11px] font-bold">Loading...</span>
+      </div>
+      <p class="text-xs text-gray-400 mt-0.5">Moodle course catalog synchronized and stored in PostgreSQL</p>
+    </div>
+
+    <!-- Controls: Search, Category Filter & Refresh -->
+    <div class="flex flex-wrap items-center gap-2.5">
+      <div class="relative w-full sm:w-72">
+        <input
+          type="text"
+          id="course-search-input"
+          placeholder="Search course title or ID..."
+          class="w-full text-xs rounded-xl border border-gray-200 bg-white px-3.5 py-2 pl-9 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 shadow-2xs"
+        />
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+
+      <select
+        id="course-category-filter"
+        class="text-xs rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:border-gray-900 cursor-pointer max-w-[180px] truncate shadow-2xs font-medium"
+      >
+        <option value="ALL">All Categories</option>
+      </select>
+
+      <button
+        id="btn-course-refresh"
+        type="button"
+        title="Refresh Courses"
+        class="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition-all cursor-pointer shadow-2xs flex items-center justify-center shrink-0"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Course Table Card Container -->
+  <div class="rounded-3xl bg-white border border-gray-200/80 shadow-xs overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-gray-50/80 text-gray-400 uppercase text-[10px] font-bold tracking-wider border-b border-gray-200">
+          <tr>
+            <th class="py-3 px-4 w-20">ID</th>
+            <th class="py-3 px-4">Course Name</th>
+            <th class="py-3 px-4 w-48">Category</th>
+            <th class="py-3 px-4 text-right w-24">Link</th>
+          </tr>
+        </thead>
+        <tbody id="courses-table-rows" class="divide-y divide-gray-100 bg-white text-gray-700 font-sans">
+          <tr>
+            <td colspan="4" class="py-12 text-center text-gray-400 text-xs">Loading courses from PostgreSQL...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="flex items-center justify-between px-6 py-3.5 bg-gray-50/50 border-t border-gray-200/70 text-xs">
+      <span id="courses-pagination-info" class="text-gray-400 font-mono text-[11px]">—</span>
+      <div class="flex items-center gap-2">
+        <button
+          id="btn-course-prev"
+          type="button"
+          disabled
+          class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+        >
+          Previous
+        </button>
+        <span id="courses-page-number" class="text-xs font-mono font-bold text-gray-700 px-2 select-none">1</span>
+        <button
+          id="btn-course-next"
+          type="button"
+          disabled
+          class="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

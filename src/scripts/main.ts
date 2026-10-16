@@ -6,6 +6,7 @@ import { initConvertTab } from './convert';
 import { rawChatLogs, loadChatLogs, renderChatLogsTable, initLogsTab, lastKPIs } from './logs';
 import { rawKPIRows, kpiPage, loadKPIData, initKpiTab } from './kpi';
 import { activeKBContent, loadActiveKB, resetActiveKB, initKbTab } from './kb';
+import { initCoursesTab, loadCourses, coursesLoaded, coursePage } from './courses';
 import { initPromptsTab, loadSystemPrompts } from './prompts';
 
 function init() {
@@ -32,6 +33,8 @@ function init() {
       loadKPIData(1);
     } else if (tab === 'kb' && !activeKBContent) {
       loadActiveKB();
+    } else if (tab === 'courses' && !coursesLoaded) {
+      loadCourses(1);
     } else if (tab === 'prompts') {
       loadSystemPrompts();
     }
@@ -43,6 +46,7 @@ function init() {
   initLogsTab();
   initKpiTab();
   initKbTab();
+  initCoursesTab();
   initPromptsTab();
 
   // 4. Quick button from ChatLogs subtab to Prompts
@@ -61,6 +65,7 @@ function init() {
       else if (activeTab === 'logs') loadChatLogs();
       else if (activeTab === 'kpi') loadKPIData(kpiPage);
       else if (activeTab === 'kb') loadActiveKB(true);
+      else if (activeTab === 'courses') loadCourses(coursePage);
       else if (activeTab === 'prompts') loadSystemPrompts();
       notify('Refreshed active dataset.');
     });

@@ -23,6 +23,10 @@ const TAB_META: Record<string, { title: string; subtitle: string }> = {
     title: 'Active Knowledge Base',
     subtitle: 'Cached CAG context pack and knowledge repository in PostgreSQL'
   },
+  courses: {
+    title: 'Course Catalog & List',
+    subtitle: 'Synchronized Moodle course directory stored in PostgreSQL'
+  },
   prompts: {
     title: 'System Prompts & Personas',
     subtitle: 'Production LLM instruction sets, modular prompt blocks, and Act-As role specifications'

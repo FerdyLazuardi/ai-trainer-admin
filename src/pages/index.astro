@@ -23,6 +23,7 @@ import ConvertIngestTab from '../components/tabs/ConvertIngestTab.astro';
 import ChatLogsTab from '../components/tabs/ChatLogsTab.astro';
 import SpreadsheetKpiTab from '../components/tabs/SpreadsheetKpiTab.astro';
 import ActiveKnowledgeTab from '../components/tabs/ActiveKnowledgeTab.astro';
+import CourseListTab from '../components/tabs/CourseListTab.astro';
 import SystemPromptsTab from '../components/tabs/SystemPromptsTab.astro';
 
 // Authenticate session from middleware or cookie
@@ -94,6 +95,7 @@ const initialSubtitle = isAdmin
     <ChatLogsTab isActive={!isAdmin} />
     <SpreadsheetKpiTab />
     <ActiveKnowledgeTab />
+    <CourseListTab />
     <SystemPromptsTab />
   </main>
 

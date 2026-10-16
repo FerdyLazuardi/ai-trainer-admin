@@ -2,6 +2,7 @@
 import { USD_TO_IDR, escapeHtml, formatTime, formatTimeNumeric, openDetailModal } from './utils';
 
 export let rawChatLogs: any[] = [];
+export let rawTrends: any[] = [];
 let rawUsersLTM: any[] = [];
 let chatLogPage = 1;
 const CHAT_LOG_PAGE_SIZE = 50;
@@ -352,6 +353,148 @@ function renderIntentDonut(intents: any[], container: HTMLElement) {
   `;
 }
 
+interface TrendZoomConfig {
+  name: string;
+  minColWidth: number;
+  gap: number;
+  dateFormat: 'day-only' | 'short' | 'medium' | 'full';
+}
+
+const TREND_ZOOM_CONFIGS: TrendZoomConfig[] = [
+  { name: 'Fit', minColWidth: 0, gap: 4, dateFormat: 'day-only' },
+  { name: '1x', minColWidth: 32, gap: 6, dateFormat: 'short' },
+  { name: '1.5x', minColWidth: 48, gap: 8, dateFormat: 'medium' },
+  { name: '2x', minColWidth: 68, gap: 10, dateFormat: 'medium' },
+  { name: '3x', minColWidth: 96, gap: 12, dateFormat: 'full' },
+];
+let currentTrendZoomIdx = 0;
+
+function formatTrendDate(dateStr: string, mode: 'day-only' | 'short' | 'medium' | 'full'): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+
+  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthNamesLong = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const dayNamesShort = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+  const mShort = monthNamesShort[monthIdx] || parts[1];
+  const mLong = monthNamesLong[monthIdx] || parts[1];
+  const dStr = String(day).padStart(2, '0');
+
+  if (mode === 'day-only') {
+    return dStr;
+  } else if (mode === 'short') {
+    return `${dStr}/${String(monthIdx + 1).padStart(2, '0')}`;
+  } else if (mode === 'medium') {
+    return `${dStr} ${mShort}`;
+  } else {
+    const d = new Date(year, monthIdx, day);
+    const dayName = isNaN(d.getTime()) ? '' : `${dayNamesShort[d.getDay()]}, `;
+    return `${dayName}${dStr} ${mLong} ${year}`;
+  }
+}
+
+export function renderDailyTrends() {
+  const container = document.getElementById('trends-chart-container');
+  const scrollArea = document.getElementById('trends-scroll-area');
+  const zoomLevelLabel = document.getElementById('trends-zoom-level');
+  const btnZoomIn = document.getElementById('btn-trends-zoom-in') as HTMLButtonElement | null;
+  const btnZoomOut = document.getElementById('btn-trends-zoom-out') as HTMLButtonElement | null;
+  const gridLines = document.getElementById('trends-grid-lines');
+
+  if (!container) return;
+
+  if (!rawTrends || rawTrends.length === 0) {
+    container.innerHTML = `<div class="w-full text-gray-400 text-xs text-center self-center">No trend data available.</div>`;
+    if (gridLines) gridLines.innerHTML = '';
+    return;
+  }
+
+  const zoom = TREND_ZOOM_CONFIGS[currentTrendZoomIdx];
+  if (zoomLevelLabel) zoomLevelLabel.innerText = zoom.name;
+  if (btnZoomIn) btnZoomIn.disabled = currentTrendZoomIdx === TREND_ZOOM_CONFIGS.length - 1;
+  if (btnZoomOut) btnZoomOut.disabled = currentTrendZoomIdx === 0;
+
+  const maxQ = Math.max(...rawTrends.map((t: any) => Number(t.queries) || 0), 1);
+
+  if (gridLines) {
+    gridLines.innerHTML = `
+      <div class="flex items-center justify-between border-b border-gray-200/60 w-full pb-0.5">
+        <span class="text-[9px] text-gray-400 font-mono select-none">${maxQ.toLocaleString('id-ID')} req</span>
+      </div>
+      <div class="flex items-center justify-between border-b border-gray-200/40 w-full pb-0.5">
+        <span class="text-[9px] text-gray-300 font-mono select-none">${Math.round(maxQ / 2).toLocaleString('id-ID')} req</span>
+      </div>
+      <div class="flex items-center justify-between border-b border-gray-200/60 w-full pb-0.5">
+        <span class="text-[9px] text-gray-400 font-mono select-none">0</span>
+      </div>
+    `;
+  }
+
+  if (zoom.minColWidth === 0) {
+    container.className = 'relative z-10 h-52 flex items-end gap-1 sm:gap-1.5 pt-8 pb-1 w-full';
+    container.style.minWidth = '';
+  } else {
+    container.className = 'relative z-10 h-52 flex items-end pt-8 pb-1';
+    container.style.gap = `${zoom.gap}px`;
+    container.style.minWidth = 'max-content';
+  }
+
+  container.innerHTML = rawTrends.map((t: any) => {
+    const q = Number(t.queries) || 0;
+    const hPct = q === 0 ? 3 : Math.max(6, Math.round((q / maxQ) * 75));
+    const dateFormatted = formatTrendDate(t.date, zoom.dateFormat);
+    const fullDateFormatted = formatTrendDate(t.date, 'full');
+
+    const colClass = zoom.minColWidth === 0
+      ? 'flex-1 min-w-[12px] sm:min-w-[16px]'
+      : 'shrink-0';
+    const colWidthStyle = zoom.minColWidth > 0 ? `style="width: ${zoom.minColWidth}px"` : '';
+
+    return `
+      <div
+        class="${colClass} flex flex-col items-center h-full justify-end group cursor-pointer relative select-none"
+        ${colWidthStyle}
+        title="${q.toLocaleString('id-ID')} requests (${fullDateFormatted})"
+      >
+        <!-- Bar wrapper with number above bar on hover -->
+        <div class="relative w-full max-w-[28px] flex flex-col items-center justify-end" style="height: ${hPct}%">
+          <!-- Plain number on hover without any chip -->
+          <span class="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none text-[10px] font-mono font-bold text-gray-700 whitespace-nowrap tabular-nums">
+            ${q.toLocaleString('id-ID')}
+          </span>
+
+          <!-- Bar element: default dark, hover gray -->
+          <div
+            class="w-full h-full rounded-t-sm transition-colors duration-150 ${
+              q > 0
+                ? 'bg-gray-900 group-hover:bg-gray-400'
+                : 'bg-gray-200 group-hover:bg-gray-300'
+            }"
+          ></div>
+        </div>
+
+        <!-- Date label -->
+        <div class="h-6 flex items-center justify-center w-full mt-1.5 shrink-0">
+          <span class="text-[9px] font-mono text-gray-400 group-hover:text-gray-900 group-hover:font-semibold whitespace-nowrap transition-colors select-none text-center">
+            ${dateFormatted}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (currentTrendZoomIdx > 0 && scrollArea) {
+    setTimeout(() => {
+      scrollArea.scrollLeft = scrollArea.scrollWidth;
+    }, 50);
+  }
+}
+
 export async function loadChatLogs() {
   const chatLogsRows = document.getElementById('chat-logs-rows');
   const logStatQueries = document.getElementById('log-stat-queries');
@@ -412,24 +555,8 @@ export async function loadChatLogs() {
 
     if (intentDonutContainer) renderIntentDonut(intents, intentDonutContainer);
 
-    if (trendsChartContainer) {
-      if (trends.length > 0) {
-        const maxQ = Math.max(...trends.map((t: any) => t.queries || 1));
-        trendsChartContainer.innerHTML = trends.map((t: any) => {
-          const hPct = Math.max(8, Math.round(((t.queries || 0) / maxQ) * 100));
-          const shortDate = t.date ? t.date.slice(5) : '';
-          return `
-            <div class="min-w-[14px] sm:min-w-[18px] flex-1 flex flex-col items-center gap-1 group h-full justify-end shrink-0 sm:shrink">
-              <span class="text-[9px] font-mono text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">${t.queries}</span>
-              <div class="w-full max-w-[20px] bg-gray-900 hover:bg-black rounded-t transition-all" style="height: ${hPct}%"></div>
-              <span class="text-[9px] font-mono text-gray-400 truncate w-full text-center">${shortDate}</span>
-            </div>
-          `;
-        }).join('');
-      } else {
-        trendsChartContainer.innerHTML = `<div class="w-full text-gray-400 text-xs text-center">No trend data available.</div>`;
-      }
-    }
+    rawTrends = trends;
+    renderDailyTrends();
 
     renderChatLogsTable();
     renderLTMTable();
@@ -1706,5 +1833,53 @@ export function initLogsTab() {
 
   if (ltmSearchInput) {
     ltmSearchInput.addEventListener('input', renderLTMTable);
+  }
+
+  // Daily Request Trends Zoom & Pan Controls
+  const btnTrendsZoomIn = document.getElementById('btn-trends-zoom-in');
+  const btnTrendsZoomOut = document.getElementById('btn-trends-zoom-out');
+  const btnTrendsZoomReset = document.getElementById('btn-trends-zoom-reset');
+  const trendsScrollArea = document.getElementById('trends-scroll-area');
+
+  if (btnTrendsZoomIn) {
+    btnTrendsZoomIn.addEventListener('click', () => {
+      if (currentTrendZoomIdx < TREND_ZOOM_CONFIGS.length - 1) {
+        currentTrendZoomIdx++;
+        renderDailyTrends();
+      }
+    });
+  }
+
+  if (btnTrendsZoomOut) {
+    btnTrendsZoomOut.addEventListener('click', () => {
+      if (currentTrendZoomIdx > 0) {
+        currentTrendZoomIdx--;
+        renderDailyTrends();
+      }
+    });
+  }
+
+  if (btnTrendsZoomReset) {
+    btnTrendsZoomReset.addEventListener('click', () => {
+      currentTrendZoomIdx = 0;
+      renderDailyTrends();
+    });
+  }
+
+  if (trendsScrollArea) {
+    trendsScrollArea.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        if (e.deltaY < 0 && currentTrendZoomIdx < TREND_ZOOM_CONFIGS.length - 1) {
+          currentTrendZoomIdx++;
+          renderDailyTrends();
+        } else if (e.deltaY > 0 && currentTrendZoomIdx > 0) {
+          currentTrendZoomIdx--;
+          renderDailyTrends();
+        }
+      } else if (currentTrendZoomIdx > 0 && e.deltaY !== 0 && trendsScrollArea.scrollWidth > trendsScrollArea.clientWidth) {
+        trendsScrollArea.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
   }
 }

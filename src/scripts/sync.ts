@@ -10,6 +10,7 @@ const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 export async function loadSyncTelemetry() {
   await Promise.allSettled([
     loadEmployeeTelemetry(),
+    loadHistoryTelemetry(),
     loadCourseTelemetry(),
   ]);
 }
@@ -132,6 +133,159 @@ async function loadEmployeeTelemetry() {
     }
   } catch (err) {
     console.error('Failed to load employee telemetry:', err);
+  }
+}
+
+async function loadHistoryTelemetry() {
+  const historyStatCount = document.getElementById('history-stat-count');
+  const historyStatCadenceBadge = document.getElementById('history-stat-cadence-badge');
+  const historyStatCadenceDetail = document.getElementById('history-stat-cadence-detail');
+  const historyStatStatusDot = document.getElementById('history-stat-status-dot');
+  const historyStatStatusText = document.getElementById('history-stat-status-text');
+  const historyStatLastTime = document.getElementById('history-stat-last-time');
+  const historyLedgerRows = document.getElementById('history-ledger-rows');
+
+  const historySchedEnabled = document.getElementById('history-sched-enabled') as HTMLInputElement | null;
+  const historySchedHour = document.getElementById('history-sched-hour') as HTMLSelectElement | null;
+  const historySchedDay = document.getElementById('history-sched-day') as HTMLSelectElement | null;
+  const historyFieldDayOfWeek = document.getElementById('history-field-day-of-week');
+
+  try {
+    const res = await fetch('/api/history/schedule');
+    if (!res.ok) throw new Error('API unreachable');
+    const data = await res.json();
+
+    if (historySchedEnabled) historySchedEnabled.checked = Boolean(data.enabled);
+    if (historySchedHour) historySchedHour.value = String(data.hour ?? 3);
+    const type = data.schedule_type || 'daily';
+    const radio = document.querySelector<HTMLInputElement>(`input[name="history_schedule_type"][value="${type}"]`);
+    if (radio) radio.checked = true;
+
+    if (historyFieldDayOfWeek && historySchedDay) {
+      if (type === 'weekly') {
+        historyFieldDayOfWeek.classList.remove('hidden');
+        historySchedDay.value = String(data.day_of_week ?? 0);
+      } else {
+        historyFieldDayOfWeek.classList.add('hidden');
+      }
+    }
+    updateHistoryRuleSummary();
+
+    if (historyStatCadenceBadge && historyStatCadenceDetail) {
+      if (data.enabled) {
+        historyStatCadenceBadge.innerText = type === 'weekly' ? `Weekly (${dayNames[data.day_of_week ?? 0]})` : 'Daily Active';
+        historyStatCadenceBadge.className = 'text-sm font-bold text-emerald-600';
+        historyStatCadenceDetail.innerText = `Trigger: ${String(data.hour ?? 3).padStart(2, '0')}:00 WIB`;
+      } else {
+        historyStatCadenceBadge.innerText = 'Disabled';
+        historyStatCadenceBadge.className = 'text-sm font-bold text-gray-500';
+        historyStatCadenceDetail.innerText = 'Manual dispatch only';
+      }
+    }
+
+    if (historyStatLastTime) historyStatLastTime.innerText = formatTime(data.last_run_at);
+
+    if (historyStatStatusDot && historyStatStatusText) {
+      if (data.last_status === 'success') {
+        historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        historyStatStatusText.innerText = 'SUCCESS';
+        historyStatStatusText.className = 'text-sm font-bold text-emerald-600';
+      } else if (data.last_status === 'failed') {
+        historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        historyStatStatusText.innerText = 'FAILED';
+        historyStatStatusText.className = 'text-sm font-bold text-rose-600';
+      } else if (data.last_status === 'BACKEND_NOT_DEPLOYED') {
+        if (historyStatCadenceBadge) {
+          historyStatCadenceBadge.innerText = 'Deploy Pending';
+          historyStatCadenceBadge.className = 'text-sm font-bold text-amber-600';
+        }
+        historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500';
+        historyStatStatusText.innerText = 'NOT DEPLOYED';
+      } else if (data.last_status === 'CORRUPTED' || !data.last_status || data.last_status === 'IDLE') {
+        let hasLocal = false;
+        try {
+          const cached = localStorage.getItem('cag:history:last_run');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed.last_status === 'success') {
+              hasLocal = true;
+              historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+              historyStatStatusText.innerText = 'SUCCESS';
+              historyStatStatusText.className = 'text-sm font-bold text-emerald-600';
+              if (historyStatLastTime) historyStatLastTime.innerText = formatTime(parsed.last_run_at);
+            }
+          }
+        } catch {}
+        if (!hasLocal) {
+          historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-gray-400';
+          historyStatStatusText.innerText = 'IDLE';
+          historyStatStatusText.className = 'text-sm font-bold text-gray-700';
+        }
+      } else {
+        historyStatStatusDot.className = 'w-2 h-2 rounded-full bg-gray-400';
+        historyStatStatusText.innerText = data.last_status || 'IDLE';
+        historyStatStatusText.className = 'text-sm font-bold text-gray-700';
+      }
+    }
+
+    // Live count from PostgreSQL table user_kpi_history
+    try {
+      const summaryRes = await fetch('/api/history/summary');
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json();
+        const totalCount = summaryData.total ?? summaryData.active ?? 0;
+        if (historyStatCount) historyStatCount.innerText = Number(totalCount).toLocaleString('id-ID');
+      } else if (historyStatCount) {
+        historyStatCount.innerText = '0';
+      }
+    } catch {
+      if (historyStatCount) historyStatCount.innerText = '0';
+    }
+
+    if (historyLedgerRows) {
+      let displayResult = data.last_result;
+      let displayStatus = data.last_status;
+      let displayTime = data.last_run_at;
+
+      if (!displayResult) {
+        try {
+          const cached = localStorage.getItem('cag:history:last_run');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            displayResult = parsed.last_result;
+            displayStatus = parsed.last_status || displayStatus;
+            displayTime = parsed.last_run_at || displayTime;
+          }
+        } catch {}
+      }
+
+      if (displayResult) {
+        const updated = displayResult.history_updated ?? displayResult.updated ?? 0;
+        const scope = displayResult.scope || 'score_trend';
+
+        historyLedgerRows.innerHTML = `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="py-2.5 px-2.5 text-gray-900 tabular-nums">${formatTime(displayTime)}</td>
+            <td class="py-2.5 px-2.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                displayStatus === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+              }">
+                ${(displayStatus || 'UNKNOWN').toUpperCase()}
+              </span>
+            </td>
+            <td class="py-2.5 px-2.5 tabular-nums text-gray-900 font-bold">${updated.toLocaleString('id-ID')}</td>
+            <td class="py-2.5 px-2.5 tabular-nums text-gray-600">${scope}</td>
+            <td class="py-2.5 px-2.5 text-right">
+              <span class="text-gray-400 text-[10px]">Verified Staged</span>
+            </td>
+          </tr>
+        `;
+      } else {
+        historyLedgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-400 font-sans text-xs">No previous execution recorded.</td></tr>`;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load history telemetry:', err);
   }
 }
 
@@ -261,6 +415,8 @@ function updateRuleSummary() {
   const schedHour = document.getElementById('sched-hour') as HTMLSelectElement | null;
   const schedDay = document.getElementById('sched-day') as HTMLSelectElement | null;
   const ruleSummary = document.getElementById('rule-summary');
+  const schedBody = document.getElementById('sched-body');
+  const btnSave = document.getElementById('btn-save-schedule') as HTMLButtonElement | null;
 
   if (!schedEnabled || !schedHour || !schedDay || !ruleSummary) return;
 
@@ -268,6 +424,13 @@ function updateRuleSummary() {
   const type = document.querySelector<HTMLInputElement>('input[name="schedule_type"]:checked')?.value || 'daily';
   const hour = schedHour.value.padStart(2, '0');
   const day = dayNames[parseInt(schedDay.value, 10)] || 'Sunday';
+
+  if (schedBody) {
+    schedBody.className = enabled
+      ? 'space-y-5 transition-all duration-200 opacity-100 pointer-events-auto'
+      : 'space-y-5 transition-all duration-200 opacity-40 pointer-events-none';
+  }
+  if (btnSave) btnSave.disabled = !enabled;
 
   if (!enabled) {
     ruleSummary.innerText = 'Inactive (Manual Trigger Only)';
@@ -281,11 +444,47 @@ function updateRuleSummary() {
   }
 }
 
+function updateHistoryRuleSummary() {
+  const historySchedEnabled = document.getElementById('history-sched-enabled') as HTMLInputElement | null;
+  const historySchedHour = document.getElementById('history-sched-hour') as HTMLSelectElement | null;
+  const historySchedDay = document.getElementById('history-sched-day') as HTMLSelectElement | null;
+  const historyRuleSummary = document.getElementById('history-rule-summary');
+  const histBody = document.getElementById('history-sched-body');
+  const btnHistSave = document.getElementById('btn-save-history-schedule') as HTMLButtonElement | null;
+
+  if (!historySchedEnabled || !historySchedHour || !historySchedDay || !historyRuleSummary) return;
+
+  const enabled = historySchedEnabled.checked;
+  const type = document.querySelector<HTMLInputElement>('input[name="history_schedule_type"]:checked')?.value || 'daily';
+  const hour = historySchedHour.value.padStart(2, '0');
+  const day = dayNames[parseInt(historySchedDay.value, 10)] || 'Sunday';
+
+  if (histBody) {
+    histBody.className = enabled
+      ? 'space-y-5 transition-all duration-200 opacity-100 pointer-events-auto'
+      : 'space-y-5 transition-all duration-200 opacity-40 pointer-events-none';
+  }
+  if (btnHistSave) btnHistSave.disabled = !enabled;
+
+  if (!enabled) {
+    historyRuleSummary.innerText = 'Inactive (Manual Trigger Only)';
+    historyRuleSummary.className = 'text-gray-500 font-medium text-xs';
+  } else if (type === 'daily') {
+    historyRuleSummary.innerText = `Run daily at ${hour}:00 WIB`;
+    historyRuleSummary.className = 'text-emerald-600 font-bold text-xs';
+  } else {
+    historyRuleSummary.innerText = `Run weekly on ${day} at ${hour}:00 WIB`;
+    historyRuleSummary.className = 'text-emerald-600 font-bold text-xs';
+  }
+}
+
 function updateCourseRuleSummary() {
   const courseSchedEnabled = document.getElementById('course-sched-enabled') as HTMLInputElement | null;
   const courseSchedHour = document.getElementById('course-sched-hour') as HTMLSelectElement | null;
   const courseSchedDay = document.getElementById('course-sched-day') as HTMLSelectElement | null;
   const courseRuleSummary = document.getElementById('course-rule-summary');
+  const courseBody = document.getElementById('course-sched-body');
+  const btnCourseSave = document.getElementById('btn-save-course-schedule') as HTMLButtonElement | null;
 
   if (!courseSchedEnabled || !courseSchedHour || !courseSchedDay || !courseRuleSummary) return;
 
@@ -293,6 +492,13 @@ function updateCourseRuleSummary() {
   const type = document.querySelector<HTMLInputElement>('input[name="course_schedule_type"]:checked')?.value || 'daily';
   const hour = courseSchedHour.value.padStart(2, '0');
   const day = dayNames[parseInt(courseSchedDay.value, 10)] || 'Sunday';
+
+  if (courseBody) {
+    courseBody.className = enabled
+      ? 'space-y-5 transition-all duration-200 opacity-100 pointer-events-auto'
+      : 'space-y-5 transition-all duration-200 opacity-40 pointer-events-none';
+  }
+  if (btnCourseSave) btnCourseSave.disabled = !enabled;
 
   if (!enabled) {
     courseRuleSummary.innerText = 'Inactive (Manual Trigger Only)';
@@ -418,7 +624,7 @@ export async function startPipeline() {
           clearInterval(timerInterval);
           if (btnSync) btnSync.disabled = false;
           if (syncSpinner) syncSpinner.classList.remove('animate-spin');
-          if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Spreadsheet';
+          if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Now';
 
           const r = pollData.result || {};
           if (r.status === 'failed') {
@@ -475,7 +681,7 @@ export async function startPipeline() {
           clearInterval(timerInterval);
           if (btnSync) btnSync.disabled = false;
           if (syncSpinner) syncSpinner.classList.remove('animate-spin');
-          if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Spreadsheet';
+          if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Now';
           if (monitorState) {
             monitorState.innerText = 'FAILED';
             monitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
@@ -496,7 +702,7 @@ export async function startPipeline() {
     clearInterval(timerInterval);
     if (btnSync) btnSync.disabled = false;
     if (syncSpinner) syncSpinner.classList.remove('animate-spin');
-    if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Spreadsheet';
+    if (syncBtnLabel) syncBtnLabel.innerText = 'Sync Now';
     if (monitorState) {
       monitorState.innerText = 'DISPATCH ERROR';
       monitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
@@ -505,6 +711,211 @@ export async function startPipeline() {
     if (monitorDetails) {
       monitorDetails.classList.remove('hidden');
       monitorDetails.innerText = err.message || 'Dispatch error occurred';
+    }
+    notify(err.message || 'Dispatch error', false);
+  }
+}
+
+export async function startHistoryPipeline() {
+  const btnHistorySync = document.getElementById('btn-trigger-history-sync') as HTMLButtonElement | null;
+  const historySyncSpinner = document.getElementById('history-sync-spinner');
+  const historySyncBtnLabel = document.getElementById('history-sync-btn-label');
+  const historyMonitor = document.getElementById('history-sync-monitor-card');
+  const historyMonitorState = document.getElementById('history-monitor-state');
+  const historyMonitorPulse = document.getElementById('history-monitor-pulse');
+  const historyMonitorBar = document.getElementById('history-monitor-bar') as HTMLElement | null;
+  const historyMonitorPct = document.getElementById('history-monitor-pct');
+  const historyMonitorJobId = document.getElementById('history-monitor-job-id');
+  const historyMonitorStage = document.getElementById('history-monitor-stage-text');
+  const historyMonitorTimer = document.getElementById('history-monitor-timer');
+  const historyMonitorDetails = document.getElementById('history-monitor-details');
+
+  if (!btnHistorySync || btnHistorySync.disabled) return;
+  btnHistorySync.disabled = true;
+  if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Syncing...';
+  if (historySyncSpinner) historySyncSpinner.classList.add('animate-spin');
+
+  if (historyMonitor) historyMonitor.classList.remove('hidden');
+  if (historyMonitorState) {
+    historyMonitorState.innerText = 'DISPATCHING';
+    historyMonitorState.className = 'text-[11px] font-bold text-amber-600 tracking-wide uppercase';
+  }
+  if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping';
+  if (historyMonitorBar) {
+    historyMonitorBar.className = 'h-full rounded-full bg-amber-500 transition-all duration-500 ease-out';
+    historyMonitorBar.style.width = '15%';
+  }
+  if (historyMonitorPct) {
+    historyMonitorPct.innerText = '15%';
+    historyMonitorPct.className = 'text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded tabular-nums';
+  }
+  if (historyMonitorJobId) historyMonitorJobId.innerText = 'Connecting to worker...';
+  if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 1/4: Task Enqueue & Worker Dispatch';
+  if (historyMonitorDetails) {
+    historyMonitorDetails.classList.add('hidden');
+    historyMonitorDetails.innerHTML = '';
+  }
+
+  let seconds = 0;
+  let targetPct = 20;
+  let currentPct = 15;
+
+  const timerInterval = setInterval(() => {
+    seconds++;
+    const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    if (historyMonitorTimer) historyMonitorTimer.innerText = `${mins}:${secs}s`;
+
+    if (currentPct < targetPct) {
+      currentPct += 1;
+      if (historyMonitorBar) historyMonitorBar.style.width = `${currentPct}%`;
+      if (historyMonitorPct) historyMonitorPct.innerText = `${currentPct}%`;
+    } else if (currentPct < 92 && targetPct < 95) {
+      currentPct += 0.5;
+      const display = Math.floor(currentPct);
+      if (historyMonitorBar) historyMonitorBar.style.width = `${display}%`;
+      if (historyMonitorPct) historyMonitorPct.innerText = `${display}%`;
+    }
+  }, 500);
+
+  try {
+    const res = await fetch('/api/history/sync', { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || errData.message || 'API dispatch rejected');
+    }
+    const data = await res.json();
+    const jobId = data.job_id;
+    if (!jobId) throw new Error('Missing job ticket ID');
+
+    if (historyMonitorJobId) historyMonitorJobId.innerText = `Ticket: ${jobId}`;
+    if (historyMonitorState) {
+      historyMonitorState.innerText = 'RUNNING';
+      historyMonitorState.className = 'text-[11px] font-bold text-emerald-600 tracking-wide uppercase';
+    }
+    if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-ping';
+    if (historyMonitorBar) historyMonitorBar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out';
+    if (historyMonitorPct) historyMonitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded tabular-nums';
+
+    targetPct = 45;
+    if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 2/4: Fetching Google Spreadsheet score_trend records...';
+    if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Processing...';
+
+    let pollCount = 0;
+    const poll = setInterval(async () => {
+      pollCount++;
+      if (pollCount === 3) {
+        targetPct = 70;
+        if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 3/4: Ingesting & normalizing into PostgreSQL user_kpi_history...';
+      }
+      if (pollCount === 7) {
+        targetPct = 88;
+        if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 4/4: Finalizing batch transaction...';
+      }
+
+      try {
+        const pollRes = await fetch(`/api/history/status/${jobId}`);
+        if (!pollRes.ok) return;
+        const pollData = await pollRes.json();
+        const status = pollData.status;
+
+        if (status === 'done' || status === 'finished') {
+          clearInterval(poll);
+          clearInterval(timerInterval);
+          if (btnHistorySync) btnHistorySync.disabled = false;
+          if (historySyncSpinner) historySyncSpinner.classList.remove('animate-spin');
+          if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Sync Now';
+
+          const r = pollData.result || {};
+          if (r.status === 'failed') {
+            if (historyMonitorState) {
+              historyMonitorState.innerText = 'FAILED';
+              historyMonitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
+            }
+            if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-rose-500';
+            if (historyMonitorBar) {
+              historyMonitorBar.className = 'h-full rounded-full bg-rose-600 transition-all duration-300';
+              historyMonitorBar.style.width = '100%';
+            }
+            if (historyMonitorPct) {
+              historyMonitorPct.innerText = 'ERR';
+              historyMonitorPct.className = 'text-[10px] font-mono font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded';
+            }
+            if (historyMonitorDetails) {
+              historyMonitorDetails.classList.remove('hidden');
+              historyMonitorDetails.innerText = `Error: ${r.error || r.message || 'Worker task aborted'}`;
+            }
+            notify('KPI history sync failed', false);
+          } else {
+            if (historyMonitorState) {
+              historyMonitorState.innerText = 'SUCCESS';
+              historyMonitorState.className = 'text-[11px] font-bold text-emerald-600 tracking-wide uppercase';
+            }
+            if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            if (historyMonitorBar) {
+              historyMonitorBar.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+              historyMonitorBar.style.width = '100%';
+            }
+            if (historyMonitorPct) {
+              historyMonitorPct.innerText = '100%';
+              historyMonitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded';
+            }
+            if (historyMonitorStage) {
+              historyMonitorStage.innerText = `Ingested ${(r.history_updated || 0).toLocaleString('id-ID')} KPI history records`;
+            }
+            const lastRunMeta = {
+              last_run_at: new Date().toISOString(),
+              last_status: 'success',
+              last_result: r,
+            };
+            try {
+              localStorage.setItem('cag:history:last_run', JSON.stringify(lastRunMeta));
+            } catch {}
+
+            fetch('/api/history/schedule', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(lastRunMeta),
+            }).catch(() => {});
+
+            notify(`KPI history sync complete: ${(r.history_updated || 0).toLocaleString('id-ID')} records staged.`);
+            loadHistoryTelemetry();
+          }
+        } else if (status === 'failed') {
+          clearInterval(poll);
+          clearInterval(timerInterval);
+          if (btnHistorySync) btnHistorySync.disabled = false;
+          if (historySyncSpinner) historySyncSpinner.classList.remove('animate-spin');
+          if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Sync Now';
+          if (historyMonitorState) {
+            historyMonitorState.innerText = 'FAILED';
+            historyMonitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
+          }
+          if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-rose-500';
+          if (historyMonitorBar) {
+            historyMonitorBar.className = 'h-full rounded-full bg-rose-600';
+            historyMonitorBar.style.width = '100%';
+          }
+          notify('Worker reported failure', false);
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    }, 2000);
+
+  } catch (err: any) {
+    clearInterval(timerInterval);
+    if (btnHistorySync) btnHistorySync.disabled = false;
+    if (historySyncSpinner) historySyncSpinner.classList.remove('animate-spin');
+    if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Sync Now';
+    if (historyMonitorState) {
+      historyMonitorState.innerText = 'DISPATCH ERROR';
+      historyMonitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
+    }
+    if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-rose-500';
+    if (historyMonitorDetails) {
+      historyMonitorDetails.classList.remove('hidden');
+      historyMonitorDetails.innerText = err.message || 'Dispatch error occurred';
     }
     notify(err.message || 'Dispatch error', false);
   }
@@ -614,7 +1025,7 @@ export async function startCoursePipeline() {
           clearInterval(timerInterval);
           if (btnCourseSync) btnCourseSync.disabled = false;
           if (courseSyncSpinner) courseSyncSpinner.classList.remove('animate-spin');
-          if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Course Catalog';
+          if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Now';
 
           const r = pollData.result || {};
           if (r.status === 'failed') {
@@ -671,7 +1082,7 @@ export async function startCoursePipeline() {
           clearInterval(timerInterval);
           if (btnCourseSync) btnCourseSync.disabled = false;
           if (courseSyncSpinner) courseSyncSpinner.classList.remove('animate-spin');
-          if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Course Catalog';
+          if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Now';
           if (courseMonitorState) {
             courseMonitorState.innerText = 'FAILED';
             courseMonitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
@@ -692,7 +1103,7 @@ export async function startCoursePipeline() {
     clearInterval(timerInterval);
     if (btnCourseSync) btnCourseSync.disabled = false;
     if (courseSyncSpinner) courseSyncSpinner.classList.remove('animate-spin');
-    if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Course Catalog';
+    if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Sync Now';
     if (courseMonitorState) {
       courseMonitorState.innerText = 'DISPATCH ERROR';
       courseMonitorState.className = 'text-[11px] font-bold text-rose-600 tracking-wide uppercase';
@@ -787,7 +1198,62 @@ export function initSyncTab() {
     btnSync.addEventListener('click', startPipeline);
   }
 
-  // B. Course Catalog Schedule & Sync
+  // B. Historical KPI Schedule & Sync
+  const formHistorySchedule = document.getElementById('form-history-schedule');
+  const historySchedEnabled = document.getElementById('history-sched-enabled');
+  const historySchedHour = document.getElementById('history-sched-hour');
+  const historySchedDay = document.getElementById('history-sched-day');
+  const historyFieldDayOfWeek = document.getElementById('history-field-day-of-week');
+  const btnHistorySync = document.getElementById('btn-trigger-history-sync');
+
+  document.querySelectorAll<HTMLInputElement>('input[name="history_schedule_type"]').forEach(r => {
+    r.addEventListener('change', (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.value === 'weekly') {
+        historyFieldDayOfWeek?.classList.remove('hidden');
+      } else {
+        historyFieldDayOfWeek?.classList.add('hidden');
+      }
+      updateHistoryRuleSummary();
+    });
+  });
+
+  if (historySchedEnabled) historySchedEnabled.addEventListener('change', updateHistoryRuleSummary);
+  if (historySchedHour) historySchedHour.addEventListener('change', updateHistoryRuleSummary);
+  if (historySchedDay) historySchedDay.addEventListener('change', updateHistoryRuleSummary);
+
+  if (formHistorySchedule) {
+    formHistorySchedule.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const historySchedEnabledEl = document.getElementById('history-sched-enabled') as HTMLInputElement | null;
+      const historySchedHourEl = document.getElementById('history-sched-hour') as HTMLSelectElement | null;
+      const historySchedDayEl = document.getElementById('history-sched-day') as HTMLSelectElement | null;
+
+      const enabled = historySchedEnabledEl ? historySchedEnabledEl.checked : false;
+      const schedule_type = document.querySelector<HTMLInputElement>('input[name="history_schedule_type"]:checked')?.value || 'daily';
+      const hour = parseInt(historySchedHourEl ? historySchedHourEl.value : '3', 10);
+      const day_of_week = parseInt(historySchedDayEl ? historySchedDayEl.value : '0', 10);
+
+      try {
+        const res = await fetch('/api/history/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled, schedule_type, hour, day_of_week }),
+        });
+        if (!res.ok) throw new Error('Failed to save KPI history schedule');
+        notify('KPI history schedule configuration committed.');
+        loadHistoryTelemetry();
+      } catch (err: any) {
+        notify(err.message || 'Error saving KPI history schedule', false);
+      }
+    });
+  }
+
+  if (btnHistorySync) {
+    btnHistorySync.addEventListener('click', startHistoryPipeline);
+  }
+
+  // C. Course Catalog Schedule & Sync
   const formCourseSchedule = document.getElementById('form-course-schedule');
   const courseSchedEnabled = document.getElementById('course-sched-enabled');
   const courseSchedHour = document.getElementById('course-sched-hour');

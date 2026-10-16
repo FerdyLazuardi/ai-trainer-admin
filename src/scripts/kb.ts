@@ -432,3 +432,4 @@ export function initKbTab() {
     btnKbRefresh.addEventListener('click', () => loadActiveKB(true));
   }
 }
+
