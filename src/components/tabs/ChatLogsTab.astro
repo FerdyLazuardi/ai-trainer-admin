@@ -388,19 +388,12 @@ const { isActive = false } = Astro.props;
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Card: Sebaran Asal Berdasarkan Pulau & Regional -->
       <div class="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center justify-between">
           <div>
             <h4 class="text-xs font-bold uppercase tracking-wider text-gray-900">Geographic Distribution: Pulau & Region</h4>
             <p class="text-[11px] text-gray-400">Field query distribution across Indonesian islands and operational regions</p>
           </div>
-          <!-- Percentage Tier Color Legend (Acuan User) -->
-          <div class="flex items-center gap-2 text-[10px] font-mono text-gray-500 font-medium shrink-0 flex-wrap">
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #10b981;"></span>&gt;70%</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #3b82f6;"></span>51–70%</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #f97316;"></span>36–50%</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #f59e0b;"></span>20–35%</span>
-            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: #ef4444;"></span>&lt;20%</span>
-          </div>
+          <span class="w-2 h-2 rounded-full bg-gray-400"></span>
         </div>
         <div id="class-geo-islands-container" class="space-y-2.5 pt-1">
           <div class="text-center py-6 text-xs text-gray-400">Loading island distribution...</div>

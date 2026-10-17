@@ -1325,22 +1325,11 @@ export function renderClassificationView() {
   // > 70%: Sangat Tinggi (Hijau)
   // 51% - 70%: Tinggi (Biru)
   // 36% - 50%: Sedang (Oranye)
-  // 20% - 35%: Rendah (Kuning / Amber)
-  // < 20%: Di Bawah 20% (Merah)
-  function getGeoColorInfo(pctNum: number): { className: string; hex: string } {
-    if (pctNum > 70) return { className: 'bg-emerald-500', hex: '#10b981' };
-    if (pctNum >= 51) return { className: 'bg-blue-500', hex: '#3b82f6' };
-    if (pctNum >= 36) return { className: 'bg-orange-500', hex: '#f97316' };
-    if (pctNum >= 20) return { className: 'bg-amber-400', hex: '#f59e0b' };
-    return { className: 'bg-rose-500', hex: '#ef4444' };
-  }
-
-  // Render Card 1: Pulau & Regional Distribution
+  // Render Card 1: Pulau & Regional Distribution (Neutral dark sebaran)
   if (geoIslandsContainer) {
     geoIslandsContainer.innerHTML = sortedIslands.map(([islName, count]) => {
       const pctNum = total > 0 ? (count / total) * 100 : 0;
       const pct = pctNum.toFixed(1);
-      const colorInfo = getGeoColorInfo(pctNum);
 
       const regList = Object.entries(islandRegionals[islName] || {})
         .sort((a, b) => b[1] - a[1])
@@ -1353,12 +1342,12 @@ export function renderClassificationView() {
           <div class="flex items-center justify-between text-xs">
             <span class="font-bold text-gray-900">${escapeHtml(islName)}</span>
             <div class="flex items-center gap-1.5 font-mono">
-              <span class="font-extrabold" style="color: ${colorInfo.hex}">${pct}%</span>
+              <span class="font-extrabold text-gray-900">${pct}%</span>
               <span class="text-gray-400 text-[11px]">(${count.toLocaleString('en-US')} turns)</span>
             </div>
           </div>
           <div class="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div class="h-full rounded-full ${colorInfo.className}" style="width: ${pct}%; background-color: ${colorInfo.hex} !important;"></div>
+            <div class="h-full rounded-full bg-gray-900" style="width: ${pct}%;"></div>
           </div>
           ${regList ? `<div class="pt-0.5 flex flex-wrap gap-1">${regList}</div>` : ''}
         </div>
