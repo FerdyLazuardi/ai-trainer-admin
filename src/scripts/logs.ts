@@ -495,7 +495,22 @@ export function renderDailyTrends() {
   }
 }
 
-export async function loadChatLogs() {
+let _lastLogsFetchTime = 0;
+let _isFetchingLogs = false;
+
+export async function loadChatLogs(force = false) {
+  if (_isFetchingLogs) return;
+  if (!force && Date.now() - _lastLogsFetchTime < 30_000 && rawChatLogs.length > 0) {
+    renderChatLogsTable();
+    renderLTMTable();
+    if (activeLogSubtab === 'explorer') {
+      renderSessionExplorer();
+    } else if (activeLogSubtab === 'classification') {
+      renderClassificationView();
+    }
+    return;
+  }
+
   const chatLogsRows = document.getElementById('chat-logs-rows');
   const logStatQueries = document.getElementById('log-stat-queries');
   const logStatLatency = document.getElementById('log-stat-latency');
@@ -505,6 +520,7 @@ export async function loadChatLogs() {
   const intentDonutContainer = document.getElementById('intent-donut-container');
   const trendsChartContainer = document.getElementById('trends-chart-container');
 
+  _isFetchingLogs = true;
   try {
     if (chatLogsRows) {
       chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">Loading chat logs from FastAPI backend...</td></tr>`;
@@ -544,6 +560,7 @@ export async function loadChatLogs() {
     rawUsersLTM = users;
     chatLogPage = 1;
     lastKPIs = kpis;
+    _lastLogsFetchTime = Date.now();
 
     if (logStatQueries) logStatQueries.innerText = (kpis.total_queries ?? logs.length).toLocaleString('id-ID');
     const avgSec = ((kpis.avg_latency || 0) / 1000).toFixed(2);
@@ -573,6 +590,8 @@ export async function loadChatLogs() {
     if (chatLogsRows) {
       chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-600 font-mono">Error loading logs: ${err.message}</td></tr>`;
     }
+  } finally {
+    _isFetchingLogs = false;
   }
 }
 

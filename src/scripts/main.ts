@@ -62,8 +62,8 @@ function init() {
   if (btnRefreshAll) {
     btnRefreshAll.addEventListener('click', () => {
       if (activeTab === 'sync') loadSyncTelemetry();
-      else if (activeTab === 'logs') loadChatLogs();
-      else if (activeTab === 'kpi') loadKPIData(kpiPage);
+      else if (activeTab === 'logs') loadChatLogs(true);
+      else if (activeTab === 'kpi') loadKPIData(kpiPage, true);
       else if (activeTab === 'kb') loadActiveKB(true);
       else if (activeTab === 'courses') loadCourses(coursePage);
       else if (activeTab === 'prompts') loadSystemPrompts();

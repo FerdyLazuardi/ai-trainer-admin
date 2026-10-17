@@ -16,7 +16,14 @@ const ROLE_NAMES: Record<string, string> = {
   HQ: 'Headquarters',
 };
 
-export async function loadKPIData(page = 1) {
+const _kpiCache = new Map<string, { time: number; data: any }>();
+const _historyCache = new Map<string, { time: number; data: any }>();
+
+export async function loadKPIData(page = 1, force = false) {
+  if (force) {
+    _kpiCache.clear();
+    _historyCache.clear();
+  }
   kpiPage = page;
   const kpiTotalBadge = document.getElementById('kpi-total-badge');
   const kpiTableRows = document.getElementById('kpi-table-rows');
@@ -34,17 +41,24 @@ export async function loadKPIData(page = 1) {
   const q = (kpiSearchInput?.value || '').trim();
   const roleFilter = kpiRoleFilter ? kpiRoleFilter.value : 'ALL';
 
-  try {
-    if (kpiTableRows) {
-      kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>`;
-    }
-    let url = `/api/kpi?scope=users&page=${page}&limit=50`;
-    if (q) url += `&search=${encodeURIComponent(q)}`;
-    if (roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
+  let url = `/api/kpi?scope=users&page=${page}&limit=50`;
+  if (q) url += `&search=${encodeURIComponent(q)}`;
+  if (roleFilter !== 'ALL') url += `&role=${encodeURIComponent(roleFilter)}`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+  try {
+    let data: any = null;
+    const cached = _kpiCache.get(url);
+    if (!force && cached && Date.now() - cached.time < 30_000) {
+      data = cached.data;
+    } else {
+      if (kpiTableRows) {
+        kpiTableRows.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-400">Loading records from PostgreSQL...</td></tr>`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      data = await res.json();
+      _kpiCache.set(url, { time: Date.now(), data });
+    }
 
     const users = data.users || (Array.isArray(data) ? data : []);
     rawKPIRows = users;
@@ -631,21 +645,31 @@ export function renderKPITable() {
 
       // Async fetch to enrich with live user_kpi_history if available
       if (row.username) {
-        fetch(`/api/history?search=${encodeURIComponent(row.username)}`)
-          .then(res => res.json())
-          .then(data => {
-            const block = document.getElementById('modal-historis-kpi-block');
-            if (!block) return;
-            const records = data?.records || [];
-            const exact = records.find((r: any) => String(r.username).trim() === String(row.username).trim()) || records[0];
-            block.outerHTML = buildEmployeeHistoryHtml(row, exact || { scores: {}, quarterly: {} });
-          })
-          .catch(() => {
-            const block = document.getElementById('modal-historis-kpi-block');
-            if (block) {
-              block.outerHTML = buildEmployeeHistoryHtml(row, { scores: {}, quarterly: {} });
-            }
-          });
+        const hKey = String(row.username).trim();
+        const cachedH = _historyCache.get(hKey);
+        if (cachedH && Date.now() - cachedH.time < 60_000) {
+          const records = cachedH.data?.records || [];
+          const exact = records.find((r: any) => String(r.username).trim() === hKey) || records[0];
+          const block = document.getElementById('modal-historis-kpi-block');
+          if (block) block.outerHTML = buildEmployeeHistoryHtml(row, exact || { scores: {}, quarterly: {} });
+        } else {
+          fetch(`/api/history?search=${encodeURIComponent(row.username)}`)
+            .then(res => res.json())
+            .then(data => {
+              _historyCache.set(hKey, { time: Date.now(), data });
+              const block = document.getElementById('modal-historis-kpi-block');
+              if (!block) return;
+              const records = data?.records || [];
+              const exact = records.find((r: any) => String(r.username).trim() === hKey) || records[0];
+              block.outerHTML = buildEmployeeHistoryHtml(row, exact || { scores: {}, quarterly: {} });
+            })
+            .catch(() => {
+              const block = document.getElementById('modal-historis-kpi-block');
+              if (block) {
+                block.outerHTML = buildEmployeeHistoryHtml(row, { scores: {}, quarterly: {} });
+              }
+            });
+        }
       }
     });
   });
@@ -666,7 +690,7 @@ export function initKpiTab() {
   const kpiTotalBadge = document.getElementById('kpi-total-badge');
 
   if (kpiRoleFilter) kpiRoleFilter.addEventListener('change', () => loadKPIData(1));
-  if (btnReloadKpi) btnReloadKpi.addEventListener('click', () => loadKPIData(1));
+  if (btnReloadKpi) btnReloadKpi.addEventListener('click', () => loadKPIData(1, true));
   if (kpiSearchInput) {
     kpiSearchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') loadKPIData(1);
