@@ -201,6 +201,15 @@ function buildSmoothSvgPath(pts: { x: number; y: number }[]): string {
 }
 
 function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
+  if (historyRecord === undefined) {
+    return `
+      <div id="modal-historis-kpi-block" class="h-full flex flex-col justify-center items-center p-8 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-3 min-h-[360px]">
+        <div class="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div class="text-xs font-semibold text-gray-500 font-mono">Loading historical KPI from PostgreSQL...</div>
+      </div>
+    `;
+  }
+
   const hData = historyRecord?.data || historyRecord || {};
   const hScores = hData.scores || {};
   const hQuarterly = hData.quarterly || {};
@@ -208,62 +217,56 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
   const skorRaw = String(row['Skor KPI'] || row.skor_kpi || '0').replace('%', '').trim();
   const skorNum = parseFloat(skorRaw) || 0;
 
-  let trendType: 'up' | 'stable' | 'down' = 'stable';
-  const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
-  const gapRaw = String(row['Gap Repayment Rate DPD 0'] || '').replace('%', '').trim();
-  const gap = parseFloat(gapRaw) || 0;
-
-  if (status.includes('exceed') || skorNum >= 80 || (skorNum >= 65 && gap >= 0)) {
-    trendType = 'up';
-  } else if (skorNum < 58 || (skorNum < 65 && gap < -3)) {
-    trendType = 'down';
-  } else {
-    trendType = 'stable';
-  }
-
-  // Competency & Certification (clean text, NO CHIPS/BADGES)
-  const competency = hData.competency || row.competency || (skorNum >= 80 ? 'COMPETENT' : (skorNum >= 65 ? 'DEVELOPING' : 'NEEDS IMPROVEMENT'));
-  const certResult = hData.certification_result || row.certification_result || (skorNum >= 80 ? 'CERTIFIED' : (skorNum >= 65 ? 'ELIGIBLE' : 'PENDING'));
+  // Competency & Certification (strictly from DB or '—')
+  const competency = hData.competency || hData.COMPETENCY || row.competency || row.COMPETENCY || '—';
+  const certResult = hData.certification_result || hData.CERTIFICATION_RESULT || row.certification_result || row.CERTIFICATION_RESULT || '—';
 
   // Months Jan - Dec
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthScores: (number | null)[] = [];
 
-  months.forEach((m, i) => {
-    if (hScores[m] !== undefined && hScores[m] !== null && hScores[m] !== '') {
-      const v = parseFloat(String(hScores[m]).replace('%', ''));
-      monthScores.push(isNaN(v) ? null : v);
-    } else {
-      if (i >= 10) {
-        monthScores.push(null);
-      } else {
-        if (trendType === 'up') {
-          const start = Math.max(35, skorNum - 14);
-          const val = start + ((skorNum - start) / 9) * i + (Math.sin(i * 1.5) * 1.5);
-          monthScores.push(Math.round(val * 10) / 10);
-        } else if (trendType === 'down') {
-          const peak = Math.min(100, skorNum + 15);
-          const val = i <= 5 
-            ? (skorNum + 5) + ((peak - (skorNum + 5)) / 5) * i
-            : peak - ((peak - skorNum) / 4) * (i - 5);
-          monthScores.push(Math.round(val * 10) / 10);
-        } else {
-          const val = skorNum + Math.sin(i * 1.8) * 2.2;
-          monthScores.push(Math.round(val * 10) / 10);
-        }
+  months.forEach((m) => {
+    const mUpper = m.toUpperCase();
+    const mLower = m.toLowerCase();
+    const rawVal = hScores[m] ?? hScores[mUpper] ?? hScores[mLower] ?? null;
+    if (rawVal !== null && rawVal !== undefined) {
+      const sVal = String(rawVal).trim();
+      if (sVal !== '' && sVal !== '-' && sVal !== 'null' && sVal !== 'undefined') {
+        const v = parseFloat(sVal.replace('%', ''));
+        monthScores.push(isNaN(v) ? null : v);
+        return;
       }
     }
+    monthScores.push(null);
   });
 
-  // Calculate Avg Score (YTD)
-  const validVals = monthScores.filter((v): v is number => v !== null);
-  const avgScore = validVals.length > 0 ? (validVals.reduce((a, b) => a + b, 0) / validVals.length) : skorNum;
-  const avgScoreFormatted = `${avgScore.toFixed(1)}%`;
+  // Calculate or retrieve Avg Score (YTD) strictly from DB
+  const rawAvg = hData.avg_score ?? hData.AVG_SCORE ?? row.avg_score ?? row.AVG_SCORE;
+  let avgScoreFormatted = '—';
+  if (rawAvg !== null && rawAvg !== undefined) {
+    const sAvg = String(rawAvg).trim();
+    if (sAvg !== '' && sAvg !== '-' && sAvg !== 'null') {
+      avgScoreFormatted = sAvg.includes('%') ? sAvg : `${sAvg}%`;
+    }
+  }
+  if (avgScoreFormatted === '—') {
+    const validVals = monthScores.filter((v): v is number => v !== null);
+    if (validVals.length > 0) {
+      const avg = validVals.reduce((a, b) => a + b, 0) / validVals.length;
+      avgScoreFormatted = `${avg.toFixed(1)}%`;
+    }
+  }
 
   // Quarters
   const calcQ = (qKey: string, startIdx: number, endIdx: number) => {
-    if (hQuarterly[qKey] !== undefined && hQuarterly[qKey] !== null) {
-      return String(hQuarterly[qKey]);
+    const qUpper = qKey.toUpperCase();
+    const qLower = qKey.toLowerCase();
+    const rawQ = hQuarterly[qKey] ?? hQuarterly[qUpper] ?? hQuarterly[qLower] ?? null;
+    if (rawQ !== null && rawQ !== undefined) {
+      const sQ = String(rawQ).trim();
+      if (sQ !== '' && sQ !== '-' && sQ !== 'null' && sQ !== 'undefined') {
+        return sQ.includes('%') ? sQ : `${sQ}%`;
+      }
     }
     const vals = monthScores.slice(startIdx, endIdx).filter((v): v is number => v !== null);
     if (vals.length === 0) return '—';
@@ -283,43 +286,61 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
   const padY = 10;
   const bottomY = chartH - 4;
 
-  const minV = Math.max(0, Math.min(...validVals) - 4);
-  const maxV = Math.min(100, Math.max(...validVals) + 4);
+  const validVals = monthScores.filter((v): v is number => v !== null);
+  const minV = validVals.length > 0 ? Math.max(0, Math.min(...validVals) - 4) : 0;
+  const maxV = validVals.length > 0 ? Math.min(100, Math.max(...validVals) + 4) : 100;
   const vRange = (maxV - minV) || 1;
 
-  // Active points across valid months
+  // Active points across valid months (aligned to exact month slots: Jan=0, Dec=11)
   const totalSlots = 11;
-  const points = validVals.map((val, i) => {
-    const x = padX + (i / totalSlots) * (chartW - padX * 2);
-    const y = padY + (1 - (val - minV) / vRange) * (chartH - padY * 2);
-    return { x, y, val, month: months[i] };
+  const points: { x: number; y: number; val: number; month: string }[] = [];
+  monthScores.forEach((val, idx) => {
+    if (val !== null) {
+      const x = padX + (idx / totalSlots) * (chartW - padX * 2);
+      const y = padY + (1 - (val - minV) / vRange) * (chartH - padY * 2);
+      points.push({ x, y, val, month: months[idx] });
+    }
   });
 
   const linePath = buildSmoothSvgPath(points);
   const firstPt = points[0] || { x: padX, y: chartH / 2 };
   const lastPt = points[points.length - 1] || { x: chartW - padX, y: chartH / 2 };
-  const areaPath = `${linePath} L ${lastPt.x.toFixed(1)} ${bottomY} L ${firstPt.x.toFixed(1)} ${bottomY} Z`;
+  const areaPath = points.length > 0
+    ? `${linePath} L ${lastPt.x.toFixed(1)} ${bottomY} L ${firstPt.x.toFixed(1)} ${bottomY} Z`
+    : '';
 
-  // Colors & Indicator Text (English)
+  // Colors & Indicator Text based on real recorded points
   let themeColor = '#3b82f6';
   let trendTextClass = 'text-blue-600';
   let trendIndicator = '→ 0.0% Stable';
 
-  const diff = (points.length > 1) ? (points[points.length - 1].val - points[0].val) : 0;
-  const diffFormatted = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
-
-  if (trendType === 'up') {
-    themeColor = '#10b981';
-    trendTextClass = 'text-emerald-600';
-    trendIndicator = `↑ ${diffFormatted} Increase`;
-  } else if (trendType === 'down') {
-    themeColor = '#ef4444';
-    trendTextClass = 'text-rose-600';
-    trendIndicator = `↓ ${diffFormatted} Decrease`;
+  if (points.length > 1) {
+    const diff = points[points.length - 1].val - points[0].val;
+    const diffFormatted = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
+    if (diff > 0.5) {
+      themeColor = '#10b981';
+      trendTextClass = 'text-emerald-600';
+      trendIndicator = `↑ ${diffFormatted} Increase`;
+    } else if (diff < -0.5) {
+      themeColor = '#ef4444';
+      trendTextClass = 'text-rose-600';
+      trendIndicator = `↓ ${diffFormatted} Decrease`;
+    } else {
+      themeColor = '#3b82f6';
+      trendTextClass = 'text-blue-600';
+      trendIndicator = `→ ${diffFormatted} Stable`;
+    }
   } else {
-    themeColor = '#3b82f6';
-    trendTextClass = 'text-blue-600';
-    trendIndicator = `→ ${diffFormatted} Stable`;
+    const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
+    if (status.includes('exceed') || skorNum >= 80) {
+      themeColor = '#10b981';
+      trendTextClass = 'text-emerald-600';
+      trendIndicator = '↑ Increase';
+    } else if (skorNum < 58) {
+      themeColor = '#ef4444';
+      trendTextClass = 'text-rose-600';
+      trendIndicator = '↓ Decrease';
+    }
   }
 
   const gradId = `grad-kpi-${Math.random().toString(36).substring(2, 8)}`;
@@ -350,23 +371,32 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
       <!-- Area Graphic Chart (Starts directly above January, full width) -->
       <div class="w-full relative">
         <div class="w-full h-28 sm:h-32">
-          <svg viewBox="0 0 ${chartW} ${chartH}" class="w-full h-full overflow-visible" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${themeColor}" stop-opacity="0.25" />
-                <stop offset="90%" stop-color="${themeColor}" stop-opacity="0.02" />
-                <stop offset="100%" stop-color="${themeColor}" stop-opacity="0" />
-              </linearGradient>
-            </defs>
-            <path d="${areaPath}" fill="url(#${gradId})" />
-            <path d="${linePath}" fill="none" stroke="${themeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            ${dotsHtml}
-          </svg>
+          ${points.length > 0 ? `
+            <svg viewBox="0 0 ${chartW} ${chartH}" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="${themeColor}" stop-opacity="0.25" />
+                  <stop offset="90%" stop-color="${themeColor}" stop-opacity="0.02" />
+                  <stop offset="100%" stop-color="${themeColor}" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="${areaPath}" fill="url(#${gradId})" />
+              <path d="${linePath}" fill="none" stroke="${themeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              ${dotsHtml}
+            </svg>
+          ` : `
+            <div class="w-full h-full flex items-center justify-center text-xs font-mono text-gray-400">
+              No historical trend points recorded
+            </div>
+          `}
         </div>
 
         <!-- Month Labels below chart (aligned 1:1 directly under each data point) -->
         <div class="flex justify-between text-[10px] font-mono font-medium text-gray-400 px-2.5 pt-1.5 border-t border-gray-100 select-none">
-          ${months.map((m, i) => `<span class="${i >= 10 ? 'text-gray-300' : 'text-gray-500'}">${m}</span>`).join('')}
+          ${months.map((m, i) => {
+            const hasVal = monthScores[i] !== null;
+            return `<span class="${hasVal ? 'text-gray-600 font-semibold' : 'text-gray-300'}">${m}</span>`;
+          }).join('')}
         </div>
       </div>
 
@@ -604,14 +634,18 @@ export function renderKPITable() {
         fetch(`/api/history?search=${encodeURIComponent(row.username)}`)
           .then(res => res.json())
           .then(data => {
-            if (data && data.records && data.records.length > 0) {
-              const block = document.getElementById('modal-historis-kpi-block');
-              if (block) {
-                block.outerHTML = buildEmployeeHistoryHtml(row, data.records[0]);
-              }
-            }
+            const block = document.getElementById('modal-historis-kpi-block');
+            if (!block) return;
+            const records = data?.records || [];
+            const exact = records.find((r: any) => String(r.username).trim() === String(row.username).trim()) || records[0];
+            block.outerHTML = buildEmployeeHistoryHtml(row, exact || { scores: {}, quarterly: {} });
           })
-          .catch(() => {});
+          .catch(() => {
+            const block = document.getElementById('modal-historis-kpi-block');
+            if (block) {
+              block.outerHTML = buildEmployeeHistoryHtml(row, { scores: {}, quarterly: {} });
+            }
+          });
       }
     });
   });
