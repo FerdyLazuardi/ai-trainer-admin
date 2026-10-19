@@ -139,61 +139,6 @@ export async function loadKPIData(page = 1, force = false) {
   }
 }
 
-function renderKpiTrendSparkline(row: any): string {
-  const directTrend = String(row.trend || row.kpi_trend || row.historical_trend || '').toLowerCase();
-  let type: 'up' | 'stable' | 'down' = 'stable';
-
-  if (directTrend) {
-    if (directTrend.includes('up') || directTrend.includes('naik') || directTrend.includes('meningkat')) {
-      type = 'up';
-    } else if (directTrend.includes('down') || directTrend.includes('turun') || directTrend.includes('penurunan')) {
-      type = 'down';
-    } else {
-      type = 'stable';
-    }
-  } else {
-    const skorRaw = String(row['Skor KPI'] || row.skor_kpi || '0').replace('%', '').trim();
-    const skor = parseFloat(skorRaw) || 0;
-    const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
-    const gapRaw = String(row['Gap Repayment Rate DPD 0'] || '').replace('%', '').trim();
-    const gap = parseFloat(gapRaw) || 0;
-
-    if (status.includes('exceed') || skor >= 80 || (skor >= 65 && gap >= 0)) {
-      type = 'up';
-    } else if (skor < 58 || (skor < 65 && gap < -3)) {
-      type = 'down';
-    } else {
-      type = 'stable';
-    }
-  }
-
-  if (type === 'up') {
-    return `
-      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Increase">
-        <svg class="w-12 h-5 text-emerald-500 overflow-visible" viewBox="0 0 48 20" fill="none">
-          <path d="M 3 17 C 15 14, 28 8, 45 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-    `;
-  } else if (type === 'down') {
-    return `
-      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Decrease">
-        <svg class="w-12 h-5 text-rose-500 overflow-visible" viewBox="0 0 48 20" fill="none">
-          <path d="M 3 13 C 12 10, 22 4, 30 8 C 36 12, 41 15, 45 17" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-    `;
-  } else {
-    return `
-      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Stable">
-        <svg class="w-12 h-5 text-blue-500 overflow-visible" viewBox="0 0 48 20" fill="none">
-          <path d="M 3 14 C 14 15, 22 7, 30 11 C 38 14, 41 10, 45 9" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-    `;
-  }
-}
-
 function buildSmoothSvgPath(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return '';
   if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
@@ -212,6 +157,130 @@ function buildSmoothSvgPath(pts: { x: number; y: number }[]): string {
     d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
   }
   return d;
+}
+
+function renderKpiTrendSparkline(row: any): string {
+  const hCached = row.username ? _historyCache.get(String(row.username).trim()) : null;
+  const hFromCache = hCached?.data?.records?.[0]?.scores || hCached?.data?.scores;
+  const scoresObj = row.scores || row.history?.scores || row.history?.data?.scores || row.data?.scores || hFromCache;
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthScores: (number | null)[] = [];
+
+  if (scoresObj && typeof scoresObj === 'object') {
+    months.forEach((m) => {
+      const mUpper = m.toUpperCase();
+      const mLower = m.toLowerCase();
+      const rawVal = scoresObj[m] ?? scoresObj[mUpper] ?? scoresObj[mLower] ?? null;
+      if (rawVal !== null && rawVal !== undefined) {
+        const sVal = String(rawVal).trim();
+        if (sVal !== '' && sVal !== '-' && sVal !== 'null' && sVal !== 'undefined') {
+          const v = parseFloat(sVal.replace('%', ''));
+          monthScores.push(isNaN(v) ? null : v);
+          return;
+        }
+      }
+      monthScores.push(null);
+    });
+  }
+
+  const validVals = monthScores.filter((v): v is number => v !== null);
+
+  // If real monthly history scores exist with 2 or more data points, render real sparkline matching modal
+  if (validVals.length >= 2) {
+    const chartW = 48;
+    const chartH = 20;
+    const padX = 4;
+    const padY = 3;
+
+    const minV = Math.max(0, Math.min(...validVals) - 4);
+    const maxV = Math.min(100, Math.max(...validVals) + 4);
+    const vRange = (maxV - minV) || 1;
+
+    // Active points mapped 1:1 matching modal's geometry (Jan=0, Dec=11)
+    const totalSlots = 11;
+    const points: { x: number; y: number; val: number; month: string }[] = [];
+    monthScores.forEach((val, idx) => {
+      if (val !== null) {
+        const x = padX + (idx / totalSlots) * (chartW - padX * 2);
+        const y = padY + (1 - (val - minV) / vRange) * (chartH - padY * 2);
+        points.push({ x, y, val, month: months[idx] });
+      }
+    });
+
+    const firstPt = points[0];
+    const lastPt = points[points.length - 1];
+    const diff = lastPt.val - firstPt.val;
+    const diffFormatted = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
+
+    let strokeColor = '#3b82f6';
+    let trendLabel = `→ ${diffFormatted} Stable`;
+
+    if (diff > 0.5) {
+      strokeColor = '#10b981';
+      trendLabel = `↑ ${diffFormatted} Increase`;
+    } else if (diff < -0.5) {
+      strokeColor = '#ef4444';
+      trendLabel = `↓ ${diffFormatted} Decrease`;
+    }
+
+    const pathD = buildSmoothSvgPath(points);
+
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: ${escapeHtml(trendLabel)} (${firstPt.month} ${firstPt.val}% → ${lastPt.month} ${lastPt.val}%)">
+        <svg class="w-12 h-5 overflow-visible" viewBox="0 0 ${chartW} ${chartH}" fill="none">
+          <path d="${pathD}" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="${lastPt.x.toFixed(1)}" cy="${lastPt.y.toFixed(1)}" r="2.2" fill="${strokeColor}"/>
+        </svg>
+      </div>
+    `;
+  }
+
+  // Graceful fallback if no multi-month history points exist yet
+  const directTrend = String(row.trend || row.kpi_trend || row.historical_trend || '').toLowerCase();
+  let type: 'up' | 'stable' | 'down' = 'stable';
+
+  if (directTrend) {
+    if (directTrend.includes('up') || directTrend.includes('naik') || directTrend.includes('meningkat')) {
+      type = 'up';
+    } else if (directTrend.includes('down') || directTrend.includes('turun') || directTrend.includes('penurunan')) {
+      type = 'down';
+    }
+  } else {
+    const status = String(row['KPI Status'] || row.kpi_status || '').toLowerCase();
+    if (status.includes('exceed')) {
+      type = 'up';
+    }
+  }
+
+  if (type === 'up') {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Increase">
+        <svg class="w-12 h-5 text-emerald-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 17 C 15 14, 28 8, 45 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="45" cy="4" r="2.2" fill="#10b981" />
+        </svg>
+      </div>
+    `;
+  } else if (type === 'down') {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Decrease">
+        <svg class="w-12 h-5 text-rose-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 5 C 15 8, 28 14, 45 17" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="45" cy="17" r="2.2" fill="#ef4444" />
+        </svg>
+      </div>
+    `;
+  } else {
+    return `
+      <div class="inline-flex items-center justify-center cursor-pointer" title="KPI Trend: Stable">
+        <svg class="w-12 h-5 text-blue-500 overflow-visible" viewBox="0 0 48 20" fill="none">
+          <path d="M 3 11 C 15 10, 30 12, 45 11" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="45" cy="11" r="2.2" fill="#3b82f6" />
+        </svg>
+      </div>
+    `;
+  }
 }
 
 function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
@@ -637,7 +706,7 @@ export function renderKPITable() {
 
           <!-- Right Column (Desktop: 7 cols, Mobile: Bottom): Historis KPI Graphic Chart & Stats -->
           <div class="lg:col-span-7 flex flex-col">
-            ${buildEmployeeHistoryHtml(row)}
+            ${buildEmployeeHistoryHtml(row, row.history || (row.scores ? { scores: row.scores } : undefined))}
           </div>
         </div>
       `;
