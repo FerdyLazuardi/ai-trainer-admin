@@ -1,7 +1,19 @@
 // src/scripts/sync.ts
-import { notify, formatTime } from './utils';
+import { notify, formatTime, escapeHtml } from './utils';
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function renderSyncDetailCell(status: string | null | undefined, result: any): string {
+  const errMsg = result?.message || result?.error;
+  if (status === 'failed') {
+    const label = errMsg ? String(errMsg) : 'Sync failed';
+    return `<span class="text-rose-700 text-[11px] font-sans font-medium" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  }
+  if (status === 'success') {
+    return `<span class="text-emerald-700 text-[11px] font-sans font-medium">Synced</span>`;
+  }
+  return `<span class="text-gray-500 text-[11px] font-sans">-</span>`;
+}
 
 // =========================================================================
 // 1. TELEMETRY LOADERS (EMPLOYEE & COURSES)
@@ -123,12 +135,12 @@ async function loadEmployeeTelemetry() {
             <td class="py-2.5 px-2.5 tabular-nums text-gray-900 font-bold">${u.toLocaleString('id-ID')}</td>
             <td class="py-2.5 px-2.5 tabular-nums text-gray-600">${b.toLocaleString('id-ID')}</td>
             <td class="py-2.5 px-2.5 text-right">
-              <span class="text-gray-400 text-[10px]">Verified Staged</span>
+              ${renderSyncDetailCell(data.last_status, data.last_result)}
             </td>
           </tr>
         `;
       } else {
-        ledgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-400 font-sans text-xs">No previous execution recorded.</td></tr>`;
+        ledgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-500 font-sans text-xs">No sync runs recorded yet.</td></tr>`;
       }
     }
   } catch (err) {
@@ -276,12 +288,12 @@ async function loadHistoryTelemetry() {
             <td class="py-2.5 px-2.5 tabular-nums text-gray-900 font-bold">${updated.toLocaleString('id-ID')}</td>
             <td class="py-2.5 px-2.5 tabular-nums text-gray-600">${scope}</td>
             <td class="py-2.5 px-2.5 text-right">
-              <span class="text-gray-400 text-[10px]">Verified Staged</span>
+              ${renderSyncDetailCell(displayStatus, displayResult)}
             </td>
           </tr>
         `;
       } else {
-        historyLedgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-400 font-sans text-xs">No previous execution recorded.</td></tr>`;
+        historyLedgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-500 font-sans text-xs">No sync runs recorded yet.</td></tr>`;
       }
     }
   } catch (err) {
@@ -393,12 +405,12 @@ async function loadCourseTelemetry() {
             <td class="py-2.5 px-2.5 tabular-nums text-gray-900 font-bold">${updated.toLocaleString('id-ID')}</td>
             <td class="py-2.5 px-2.5 tabular-nums text-gray-600">${deleted.toLocaleString('id-ID')}</td>
             <td class="py-2.5 px-2.5 text-right">
-              <span class="text-gray-400 text-[10px]">Verified Catalog</span>
+              ${renderSyncDetailCell(data.last_status, data.last_result)}
             </td>
           </tr>
         `;
       } else {
-        courseLedgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-400 font-sans text-xs">No previous execution recorded.</td></tr>`;
+        courseLedgerRows.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-500 font-sans text-xs">No sync runs recorded yet.</td></tr>`;
       }
     }
   } catch (err) {
@@ -550,7 +562,7 @@ export async function startPipeline() {
     monitorPct.className = 'text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded tabular-nums';
   }
   if (monitorJobId) monitorJobId.innerText = 'Connecting to worker...';
-  if (monitorStage) monitorStage.innerText = 'Stage 1/4: Task Enqueue & Worker Dispatch';
+  if (monitorStage) monitorStage.innerText = 'Step 1/4: Queueing sync job...';
   if (monitorDetails) {
     monitorDetails.classList.add('hidden');
     monitorDetails.innerHTML = '';
@@ -588,17 +600,17 @@ export async function startPipeline() {
     const jobId = data.job_id;
     if (!jobId) throw new Error('Missing job ticket ID');
 
-    if (monitorJobId) monitorJobId.innerText = `Ticket: ${jobId}`;
+    if (monitorJobId) monitorJobId.innerText = `Job ID: ${jobId}`;
     if (monitorState) {
       monitorState.innerText = 'RUNNING';
       monitorState.className = 'text-[11px] font-bold text-emerald-600 tracking-wide uppercase';
     }
     if (monitorPulse) monitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-ping';
-    if (monitorBar) monitorBar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out';
+    if (monitorBar) monitorBar.className = 'h-full rounded-full bg-emerald-600 transition-all duration-500 ease-out';
     if (monitorPct) monitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded tabular-nums';
 
     targetPct = 45;
-    if (monitorStage) monitorStage.innerText = 'Stage 2/4: Fetching Google Spreadsheet records...';
+    if (monitorStage) monitorStage.innerText = 'Step 2/4: Fetching records from Google Sheets...';
     if (syncBtnLabel) syncBtnLabel.innerText = 'Processing...';
 
     let pollCount = 0;
@@ -606,11 +618,11 @@ export async function startPipeline() {
       pollCount++;
       if (pollCount === 3) {
         targetPct = 70;
-        if (monitorStage) monitorStage.innerText = 'Stage 3/4: Ingesting & normalizing into PostgreSQL...';
+        if (monitorStage) monitorStage.innerText = 'Step 3/4: Saving records to PostgreSQL...';
       }
       if (pollCount === 7) {
         targetPct = 88;
-        if (monitorStage) monitorStage.innerText = 'Stage 4/4: Finalizing batch transaction...';
+        if (monitorStage) monitorStage.innerText = 'Step 4/4: Finalizing sync...';
       }
 
       try {
@@ -645,7 +657,8 @@ export async function startPipeline() {
               monitorDetails.classList.remove('hidden');
               monitorDetails.innerText = `Error: ${r.error || r.message || 'Worker task aborted'}`;
             }
-            notify('Spreadsheet sync failed', false);
+            notify(`Spreadsheet sync failed: ${r.error || r.message || 'Unknown error'}`, false);
+            loadEmployeeTelemetry();
           } else {
             if (monitorState) {
               monitorState.innerText = 'SUCCESS';
@@ -653,27 +666,27 @@ export async function startPipeline() {
             }
             if (monitorPulse) monitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500';
             if (monitorBar) {
-              monitorBar.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+              monitorBar.className = 'h-full rounded-full bg-emerald-600 transition-all duration-300';
               monitorBar.style.width = '100%';
             }
             if (monitorPct) {
               monitorPct.innerText = '100%';
               monitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded tabular-nums';
             }
-            if (monitorStage) monitorStage.innerText = 'Complete: Pipeline synchronized & verified';
+            if (monitorStage) monitorStage.innerText = 'Sync completed';
             if (monitorDetails) {
               monitorDetails.classList.remove('hidden');
               const u = r.users_updated ?? 0;
               const b = r.branches_updated ?? 0;
               monitorDetails.innerHTML = `
                 <div class="flex items-center gap-4 text-xs font-mono pt-1 text-gray-700">
-                  <div>Users Staged: <span class="text-emerald-700 font-bold">${u.toLocaleString('id-ID')}</span></div>
+                  <div>Users Updated: <span class="text-emerald-700 font-bold">${u.toLocaleString('id-ID')}</span></div>
                   <div>Branches: <span class="text-emerald-700 font-bold">${b.toLocaleString('id-ID')}</span></div>
-                  <div class="text-emerald-600 font-semibold">✓ Postgres Live</div>
+                  <div class="text-emerald-700 font-semibold">Saved to Postgres</div>
                 </div>
               `;
             }
-            notify('Spreadsheet sync pipeline complete!');
+            notify('Spreadsheet sync complete.');
             loadEmployeeTelemetry();
           }
         } else if (status === 'failed') {
@@ -750,7 +763,7 @@ export async function startHistoryPipeline() {
     historyMonitorPct.className = 'text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded tabular-nums';
   }
   if (historyMonitorJobId) historyMonitorJobId.innerText = 'Connecting to worker...';
-  if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 1/4: Task Enqueue & Worker Dispatch';
+  if (historyMonitorStage) historyMonitorStage.innerText = 'Step 1/4: Queueing sync job...';
   if (historyMonitorDetails) {
     historyMonitorDetails.classList.add('hidden');
     historyMonitorDetails.innerHTML = '';
@@ -788,17 +801,17 @@ export async function startHistoryPipeline() {
     const jobId = data.job_id;
     if (!jobId) throw new Error('Missing job ticket ID');
 
-    if (historyMonitorJobId) historyMonitorJobId.innerText = `Ticket: ${jobId}`;
+    if (historyMonitorJobId) historyMonitorJobId.innerText = `Job ID: ${jobId}`;
     if (historyMonitorState) {
       historyMonitorState.innerText = 'RUNNING';
       historyMonitorState.className = 'text-[11px] font-bold text-emerald-600 tracking-wide uppercase';
     }
     if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-ping';
-    if (historyMonitorBar) historyMonitorBar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out';
+    if (historyMonitorBar) historyMonitorBar.className = 'h-full rounded-full bg-emerald-600 transition-all duration-500 ease-out';
     if (historyMonitorPct) historyMonitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded tabular-nums';
 
     targetPct = 45;
-    if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 2/4: Fetching Google Spreadsheet score_trend records...';
+    if (historyMonitorStage) historyMonitorStage.innerText = 'Step 2/4: Fetching score_trend records...';
     if (historySyncBtnLabel) historySyncBtnLabel.innerText = 'Processing...';
 
     let pollCount = 0;
@@ -806,11 +819,11 @@ export async function startHistoryPipeline() {
       pollCount++;
       if (pollCount === 3) {
         targetPct = 70;
-        if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 3/4: Ingesting & normalizing into PostgreSQL user_kpi_history...';
+        if (historyMonitorStage) historyMonitorStage.innerText = 'Step 3/4: Saving KPI history to PostgreSQL...';
       }
       if (pollCount === 7) {
         targetPct = 88;
-        if (historyMonitorStage) historyMonitorStage.innerText = 'Stage 4/4: Finalizing batch transaction...';
+        if (historyMonitorStage) historyMonitorStage.innerText = 'Step 4/4: Finalizing sync...';
       }
 
       try {
@@ -845,7 +858,8 @@ export async function startHistoryPipeline() {
               historyMonitorDetails.classList.remove('hidden');
               historyMonitorDetails.innerText = `Error: ${r.error || r.message || 'Worker task aborted'}`;
             }
-            notify('KPI history sync failed', false);
+            notify(`KPI history sync failed: ${r.error || r.message || 'Unknown error'}`, false);
+            loadHistoryTelemetry();
           } else {
             if (historyMonitorState) {
               historyMonitorState.innerText = 'SUCCESS';
@@ -853,7 +867,7 @@ export async function startHistoryPipeline() {
             }
             if (historyMonitorPulse) historyMonitorPulse.className = 'w-2 h-2 rounded-full bg-emerald-500';
             if (historyMonitorBar) {
-              historyMonitorBar.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+              historyMonitorBar.className = 'h-full rounded-full bg-emerald-600 transition-all duration-300';
               historyMonitorBar.style.width = '100%';
             }
             if (historyMonitorPct) {
@@ -861,7 +875,7 @@ export async function startHistoryPipeline() {
               historyMonitorPct.className = 'text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded';
             }
             if (historyMonitorStage) {
-              historyMonitorStage.innerText = `Ingested ${(r.history_updated || 0).toLocaleString('id-ID')} KPI history records`;
+              historyMonitorStage.innerText = `Updated ${(r.history_updated || 0).toLocaleString('id-ID')} KPI history records`;
             }
             const lastRunMeta = {
               last_run_at: new Date().toISOString(),
@@ -872,13 +886,7 @@ export async function startHistoryPipeline() {
               localStorage.setItem('cag:history:last_run', JSON.stringify(lastRunMeta));
             } catch {}
 
-            fetch('/api/history/schedule', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(lastRunMeta),
-            }).catch(() => {});
-
-            notify(`KPI history sync complete: ${(r.history_updated || 0).toLocaleString('id-ID')} records staged.`);
+            notify(`KPI history sync complete: ${(r.history_updated || 0).toLocaleString('id-ID')} records updated.`);
             loadHistoryTelemetry();
           }
         } else if (status === 'failed') {
@@ -955,7 +963,7 @@ export async function startCoursePipeline() {
     courseMonitorPct.className = 'text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded tabular-nums';
   }
   if (courseMonitorJobId) courseMonitorJobId.innerText = 'Connecting to worker...';
-  if (courseMonitorStage) courseMonitorStage.innerText = 'Stage 1/3: Task Enqueue & Worker Dispatch';
+  if (courseMonitorStage) courseMonitorStage.innerText = 'Step 1/3: Queueing course sync job...';
   if (courseMonitorDetails) {
     courseMonitorDetails.classList.add('hidden');
     courseMonitorDetails.innerHTML = '';
@@ -993,17 +1001,17 @@ export async function startCoursePipeline() {
     const jobId = data.job_id;
     if (!jobId) throw new Error('Missing job ticket ID');
 
-    if (courseMonitorJobId) courseMonitorJobId.innerText = `Ticket: ${jobId}`;
+    if (courseMonitorJobId) courseMonitorJobId.innerText = `Job ID: ${jobId}`;
     if (courseMonitorState) {
       courseMonitorState.innerText = 'RUNNING';
       courseMonitorState.className = 'text-[11px] font-bold text-indigo-600 tracking-wide uppercase';
     }
     if (courseMonitorPulse) courseMonitorPulse.className = 'w-2 h-2 rounded-full bg-indigo-500 animate-ping';
-    if (courseMonitorBar) courseMonitorBar.className = 'h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out';
+    if (courseMonitorBar) courseMonitorBar.className = 'h-full rounded-full bg-indigo-600 transition-all duration-500 ease-out';
     if (courseMonitorPct) courseMonitorPct.className = 'text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded tabular-nums';
 
     targetPct = 60;
-    if (courseMonitorStage) courseMonitorStage.innerText = 'Stage 2/3: Fetching and parsing active catalog...';
+    if (courseMonitorStage) courseMonitorStage.innerText = 'Step 2/3: Fetching active courses...';
     if (courseSyncBtnLabel) courseSyncBtnLabel.innerText = 'Processing...';
 
     let pollCount = 0;
@@ -1011,7 +1019,7 @@ export async function startCoursePipeline() {
       pollCount++;
       if (pollCount === 2) {
         targetPct = 85;
-        if (courseMonitorStage) courseMonitorStage.innerText = 'Stage 3/3: Staging active courses & pruning orphans...';
+        if (courseMonitorStage) courseMonitorStage.innerText = 'Step 3/3: Saving courses to PostgreSQL...';
       }
 
       try {
@@ -1046,7 +1054,8 @@ export async function startCoursePipeline() {
               courseMonitorDetails.classList.remove('hidden');
               courseMonitorDetails.innerText = `Error: ${r.error || r.message || 'Worker task aborted'}`;
             }
-            notify('Course sync failed', false);
+            notify(`Course sync failed: ${r.error || r.message || 'Unknown error'}`, false);
+            loadCourseTelemetry();
           } else {
             if (courseMonitorState) {
               courseMonitorState.innerText = 'SUCCESS';
@@ -1054,14 +1063,14 @@ export async function startCoursePipeline() {
             }
             if (courseMonitorPulse) courseMonitorPulse.className = 'w-2 h-2 rounded-full bg-indigo-500';
             if (courseMonitorBar) {
-              courseMonitorBar.className = 'h-full rounded-full bg-indigo-500 transition-all duration-300';
+              courseMonitorBar.className = 'h-full rounded-full bg-indigo-600 transition-all duration-300';
               courseMonitorBar.style.width = '100%';
             }
             if (courseMonitorPct) {
               courseMonitorPct.innerText = '100%';
               courseMonitorPct.className = 'text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded tabular-nums';
             }
-            if (courseMonitorStage) courseMonitorStage.innerText = 'Complete: Course catalog synchronized & verified';
+            if (courseMonitorStage) courseMonitorStage.innerText = 'Course sync completed';
             if (courseMonitorDetails) {
               courseMonitorDetails.classList.remove('hidden');
               const u = r.courses_updated ?? r.updated ?? 0;
@@ -1069,12 +1078,12 @@ export async function startCoursePipeline() {
               courseMonitorDetails.innerHTML = `
                 <div class="flex items-center gap-4 text-xs font-mono pt-1 text-gray-700">
                   <div>Active Courses: <span class="text-indigo-700 font-bold">${u.toLocaleString('id-ID')}</span></div>
-                  <div>Pruned: <span class="text-gray-600 font-bold">${d.toLocaleString('id-ID')}</span></div>
-                  <div class="text-indigo-600 font-semibold">✓ Postgres Live</div>
+                  <div>Removed: <span class="text-gray-600 font-bold">${d.toLocaleString('id-ID')}</span></div>
+                  <div class="text-indigo-700 font-semibold">Saved to Postgres</div>
                 </div>
               `;
             }
-            notify('Course catalog sync complete!');
+            notify('Course catalog sync complete.');
             loadCourseTelemetry();
           }
         } else if (status === 'failed') {
@@ -1186,7 +1195,7 @@ export function initSyncTab() {
           body: JSON.stringify({ enabled, schedule_type, hour, day_of_week }),
         });
         if (!res.ok) throw new Error('Failed to save employee schedule');
-        notify('Employee schedule configuration committed.');
+        notify('Employee sync schedule saved.');
         loadEmployeeTelemetry();
       } catch (err: any) {
         notify(err.message || 'Error saving employee schedule', false);
@@ -1241,7 +1250,7 @@ export function initSyncTab() {
           body: JSON.stringify({ enabled, schedule_type, hour, day_of_week }),
         });
         if (!res.ok) throw new Error('Failed to save KPI history schedule');
-        notify('KPI history schedule configuration committed.');
+        notify('KPI history sync schedule saved.');
         loadHistoryTelemetry();
       } catch (err: any) {
         notify(err.message || 'Error saving KPI history schedule', false);
@@ -1296,7 +1305,7 @@ export function initSyncTab() {
           body: JSON.stringify({ enabled, schedule_type, hour, day_of_week }),
         });
         if (!res.ok) throw new Error('Failed to save course schedule');
-        notify('Course catalog schedule configuration committed.');
+        notify('Course sync schedule saved.');
         loadCourseTelemetry();
       } catch (err: any) {
         notify(err.message || 'Error saving course schedule', false);

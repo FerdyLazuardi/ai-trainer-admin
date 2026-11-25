@@ -37,7 +37,10 @@ export function notify(message: string, isSuccess = true) {
   if (!toast || !toastMsg || !toastIcon) return;
 
   toastMsg.innerText = message;
-  toastIcon.innerText = isSuccess ? '⚡' : '⚠️';
+  toastIcon.className = `inline-flex items-center justify-center shrink-0 ${isSuccess ? 'text-emerald-600' : 'text-rose-600'}`;
+  toastIcon.innerHTML = isSuccess
+    ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+    : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>';
   toast.classList.remove('translate-y-12', 'opacity-0');
   toast.classList.add('translate-y-0', 'opacity-100');
   setTimeout(() => {
@@ -72,7 +75,7 @@ export function escapeHtml(str: any): string {
 }
 
 export function formatTime(iso?: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     const d = new Date(iso);
     return d.toLocaleString('id-ID', {
@@ -86,7 +89,7 @@ export function formatTime(iso?: string | null): string {
 }
 
 export function formatTimeNumeric(iso?: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;

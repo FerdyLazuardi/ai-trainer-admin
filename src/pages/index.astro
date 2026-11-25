@@ -42,8 +42,8 @@ const isAdmin = userRole === 'ADMIN';
 
 const initialTitle = isAdmin ? 'Spreadsheet Sync' : 'Chat Logs & Analytics';
 const initialSubtitle = isAdmin
-  ? 'Automated synchronization and telemetry management'
-  : 'Audited turns, intent distribution, and LLM telemetry';
+  ? 'Sync employee KPI, history, and course spreadsheets to PostgreSQL'
+  : 'Conversation logs, intent breakdown, and session history';
 ---
 
 <!DOCTYPE html>
@@ -51,7 +51,7 @@ const initialSubtitle = isAdmin
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard Ai - Trainer • Operations & Analytics Cockpit</title>
+  <title>AI Trainer Admin</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
@@ -60,7 +60,7 @@ const initialSubtitle = isAdmin
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <script is:inline src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script is:inline defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-[#F3F4F6] text-gray-900 min-h-screen lg:h-screen lg:overflow-hidden antialiased p-0 lg:p-5 flex flex-col lg:flex-row gap-0 lg:gap-5 font-sans selection:bg-gray-900/10 selection:text-gray-900">
 

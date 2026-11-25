@@ -81,12 +81,12 @@ export async function loadCourses(page = 1) {
       } else {
         tbody.innerHTML = courses.map(c => {
           const link = c.url
-            ? `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors font-medium">Open <span class="text-[10px]">↗</span></a>`
-            : `<span class="text-gray-300">—</span>`;
+            ? `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-gray-700 hover:text-gray-900 transition-colors font-medium">Open</a>`
+            : `<span class="text-gray-400">-</span>`;
 
           return `
             <tr class="hover:bg-gray-50/60 transition-colors">
-              <td class="py-3 px-4 font-mono text-[11px] text-gray-400">#${c.id}</td>
+              <td class="py-3 px-4 font-mono text-[11px] text-gray-500">#${c.id}</td>
               <td class="py-3 px-4 font-medium text-gray-900 text-xs sm:text-sm">${escapeHtml(c.fullname)}</td>
               <td class="py-3 px-4">
                 <span class="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[11px] max-w-[200px] truncate" title="${escapeHtml(c.category || '-')}">

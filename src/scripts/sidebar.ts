@@ -5,31 +5,31 @@ export let activeTab = 'sync';
 const TAB_META: Record<string, { title: string; subtitle: string }> = {
   sync: {
     title: 'Spreadsheet Sync',
-    subtitle: 'Automated synchronization and telemetry management'
+    subtitle: 'Sync employee KPI, history, and course spreadsheets to PostgreSQL'
   },
   convert: {
     title: 'Convert to Markdown',
-    subtitle: 'Extract PPTX/PDF/XLSX and standardize into clean CAG Markdown'
+    subtitle: 'Convert PPTX, PDF, or XLSX files into CAG Markdown'
   },
   logs: {
     title: 'Chat Logs & Analytics',
-    subtitle: 'Audited turns, intent distribution, and LLM telemetry'
+    subtitle: 'Conversation logs, intent breakdown, and session history'
   },
   kpi: {
     title: 'Spreadsheet KPI Directory',
-    subtitle: 'Live PostgreSQL user KPI data synced from spreadsheet'
+    subtitle: 'Employee KPI records stored in PostgreSQL'
   },
   kb: {
     title: 'Active Knowledge Base',
-    subtitle: 'Cached CAG context pack and knowledge repository in PostgreSQL'
+    subtitle: 'Active CAG knowledge base stored in PostgreSQL'
   },
   courses: {
-    title: 'Course Catalog & List',
-    subtitle: 'Synchronized Moodle course directory stored in PostgreSQL'
+    title: 'Course List',
+    subtitle: 'Active Moodle courses synced to PostgreSQL'
   },
   prompts: {
-    title: 'System Prompts & Personas',
-    subtitle: 'Production LLM instruction sets, modular prompt blocks, and Act-As role specifications'
+    title: 'System Prompts',
+    subtitle: 'System prompt currently used by the AI Trainer'
   }
 };
 

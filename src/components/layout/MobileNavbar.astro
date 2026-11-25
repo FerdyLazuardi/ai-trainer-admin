@@ -9,17 +9,17 @@ interface Props {
 const { initialTitle = 'Spreadsheet Sync' } = Astro.props;
 ---
 
-<header id="mobile-navbar" class="lg:hidden sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-200/80 px-4 py-3 flex items-center justify-between">
+<header id="mobile-navbar" class="lg:hidden sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-gray-200/80 px-4 py-2.5 flex items-center justify-between">
   <div class="flex items-center gap-3 min-w-0">
-    <button id="mobile-menu-toggle" title="Open Navigation Menu" class="w-8 h-8 rounded-xl border border-gray-200/90 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 flex items-center justify-center cursor-pointer transition-all shrink-0">
-      <svg id="mobile-menu-arrow" class="w-4 h-4 transition-transform duration-200 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <button id="mobile-menu-toggle" type="button" title="Open Navigation Menu" aria-label="Open navigation menu" class="w-11 h-11 rounded-lg border border-gray-200/90 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 flex items-center justify-center cursor-pointer transition-all shrink-0">
+      <svg id="mobile-menu-arrow" class="w-4 h-4 transition-transform duration-200 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
       </svg>
     </button>
 
     <div class="min-w-0">
       <div id="mobile-header-title" class="font-extrabold text-sm text-gray-900 tracking-tight leading-tight">{initialTitle}</div>
-      <div class="font-bold text-[10px] text-gray-500 tracking-wide leading-tight mt-0.5">Ai - Trainer</div>
+      <div class="font-semibold text-[11px] text-gray-500 leading-tight mt-0.5">AI Trainer</div>
     </div>
   </div>
 </header>

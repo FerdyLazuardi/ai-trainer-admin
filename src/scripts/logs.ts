@@ -6,6 +6,14 @@ export let rawTrends: any[] = [];
 let rawUsersLTM: any[] = [];
 let chatLogPage = 1;
 const CHAT_LOG_PAGE_SIZE = 50;
+let explorerPage = 1;
+let explorerPageSize = 25;
+let explorerAccountFilter = 'REAL';
+let totalEmployeeHeadcount = 0;
+let cachedGroupedLogsRef: any[] | null = null;
+let cachedGroupedSessions: any[] = [];
+let currentExplorerPageSessions: any[] = [];
+let explorerSearchTimer: ReturnType<typeof setTimeout> | null = null;
 let nextLogCursor: string | null = null;
 let isLoadingMoreLogs = false;
 let activeLogSubtab = 'recent';
@@ -248,7 +256,7 @@ export function parseSessionUser(sessionId: string, row?: any) {
     pulau: finalPulau,
     username: finalUsername,
     id: id,
-    raw: sessionId || '—',
+    raw: sessionId || '-',
   };
 }
 
@@ -537,6 +545,11 @@ export async function loadChatLogs(force = false) {
     const intents = data.intents || [];
     const trends = data.trends || [];
     const users = data.users || [];
+    const hcByRole = data.adoption?.headcount_by_role || {};
+    totalEmployeeHeadcount = Object.values(hcByRole).reduce(
+      (sum: number, val: any) => sum + (Number(val) || 0),
+      0
+    );
 
     nextLogCursor = data.next_cursor || null;
 
@@ -559,6 +572,7 @@ export async function loadChatLogs(force = false) {
     rawChatLogs = logs;
     rawUsersLTM = users;
     chatLogPage = 1;
+    explorerPage = 1;
     lastKPIs = kpis;
     _lastLogsFetchTime = Date.now();
 
@@ -588,7 +602,11 @@ export async function loadChatLogs(force = false) {
   } catch (err: any) {
     console.error('Failed to load chat logs:', err);
     if (chatLogsRows) {
-      chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-600 font-mono">Error loading logs: ${err.message}</td></tr>`;
+      chatLogsRows.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-600 font-mono">Error loading logs: ${escapeHtml(err.message)}</td></tr>`;
+    }
+    const sessionSummaryRows = document.getElementById('session-summary-rows');
+    if (sessionSummaryRows) {
+      sessionSummaryRows.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-rose-600 font-mono">Error loading sessions: ${escapeHtml(err.message)}</td></tr>`;
     }
   } finally {
     _isFetchingLogs = false;
@@ -682,9 +700,9 @@ export function renderChatLogsTable() {
           ${geoSummary ? `<div class="mt-1 text-[10px] text-gray-500 truncate max-w-[190px]" title="${escapeHtml([user.point, user.area, user.regional, user.pulau].filter(Boolean).join(' • '))}">${escapeHtml(geoSummary)}</div>` : ''}
         </td>
         <td class="py-3 px-4 max-w-xs sm:max-w-md md:max-w-lg min-w-0">
-          <div class="font-semibold text-gray-900 text-xs truncate" title="${escapeHtml(row.query || '—')}">${escapeHtml(row.query || '—')}</div>
+          <div class="font-semibold text-gray-900 text-xs truncate" title="${escapeHtml(row.query || '-')}">${escapeHtml(row.query || '-')}</div>
           <div class="text-[11px] text-gray-500 mt-0.5 truncate font-sans" title="${escapeHtml(row.answer || '')}">
-            ${escapeHtml(row.answer || '—')}
+            ${escapeHtml(row.answer || '-')}
           </div>
         </td>
         <td class="py-3 px-4">
@@ -728,29 +746,29 @@ export function renderChatLogsTable() {
               </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700">
-              <div><span class="text-gray-400">Full Name:</span> <strong class="text-gray-900 ml-1">${escapeHtml(user.name)}</strong></div>
-              <div><span class="text-gray-400">Position:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.role)}</span></div>
-              <div><span class="text-gray-400">Branch Point:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.point || '—')}</span></div>
-              <div><span class="text-gray-400">Area:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.area || '—')}</span></div>
-              <div><span class="text-gray-400">Regional:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.regional || '—')}</span></div>
-              <div><span class="text-gray-400">Pulau:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.pulau || '—')}</span></div>
+              <div><span class="text-gray-500">Full Name:</span> <strong class="text-gray-900 ml-1">${escapeHtml(user.name)}</strong></div>
+              <div><span class="text-gray-500">Position:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.role)}</span></div>
+              <div><span class="text-gray-500">Branch Point:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.point || '-')}</span></div>
+              <div><span class="text-gray-500">Area:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.area || '-')}</span></div>
+              <div><span class="text-gray-500">Regional:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.regional || '-')}</span></div>
+              <div><span class="text-gray-500">Island:</span> <span class="font-semibold text-gray-900 ml-1">${escapeHtml(user.pulau || '-')}</span></div>
             </div>
             <div class="pt-1.5 border-t border-gray-200/60">
-              <div class="text-[10px] text-gray-400 font-mono mb-1 uppercase tracking-wider">Full Session ID:</div>
+              <div class="text-[11px] text-gray-500 font-semibold mb-1">Full Session ID</div>
               <div class="font-mono text-[11px] text-gray-800 bg-white p-2.5 rounded-xl border border-gray-200/80 break-all select-all shadow-2xs">
                 ${escapeHtml(user.raw)}
               </div>
             </div>
           </div>
 
-          <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">User Query</div>
-            <div class="text-gray-900 text-sm whitespace-pre-wrap font-medium">${escapeHtml(row.query || '—')}</div>
+          <div class="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+            <div class="text-[11px] text-gray-500 font-semibold">User Query</div>
+            <div class="text-gray-900 text-sm whitespace-pre-wrap font-medium">${escapeHtml(row.query || '-')}</div>
           </div>
 
-          <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Assistant Response</div>
-            <div class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.answer || '—')}</div>
+          <div class="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+            <div class="text-[11px] text-gray-500 font-semibold">Assistant Response</div>
+            <div class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.answer || '-')}</div>
           </div>
         </div>
       `;
@@ -759,63 +777,143 @@ export function renderChatLogsTable() {
   });
 }
 
+function getSessionUserKey(sessionId: string, row?: any): string {
+  const sid = String(sessionId || '').trim();
+  const rawId = sid.includes('_') ? sid.split('_')[0] : sid;
+  if (/^\d+$/.test(rawId)) return `id:${rawId}`;
+  const uname = String(row?.username || '').trim().toLowerCase();
+  if (uname) return `u:${uname}`;
+  return `s:${sid || 'unknown'}`;
+}
+
 function getGroupedSessions() {
-  const groups = new Map();
-  rawChatLogs.forEach(log => {
+  if (cachedGroupedLogsRef === rawChatLogs) {
+    return cachedGroupedSessions;
+  }
+
+  const groups = new Map<string, any[]>();
+  for (let i = 0; i < rawChatLogs.length; i++) {
+    const log = rawChatLogs[i];
     const sId = log.session_id || 'Unknown';
-    if (!groups.has(sId)) {
-      groups.set(sId, []);
+    let arr = groups.get(sId);
+    if (!arr) {
+      arr = [];
+      groups.set(sId, arr);
     }
-    groups.get(sId).push(log);
-  });
+    arr.push(log);
+  }
 
   const sessionList: any[] = [];
   groups.forEach((turns, sId) => {
     turns.sort((a: any, b: any) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
     const latestTurn = turns[turns.length - 1];
     const user = parseSessionUser(sId, latestTurn);
+    const searchText = [
+      sId,
+      user.name,
+      user.role,
+      user.point,
+      user.area,
+      user.regional,
+      user.pulau,
+      user.username,
+    ].join(' ').toLowerCase();
+
     sessionList.push({
       sessionId: sId,
       user,
+      userKey: getSessionUserKey(sId, latestTurn),
+      isRealUser: isRealUserLog(latestTurn),
+      searchText,
       turns,
       turnsCount: turns.length,
-      latestActivity: latestTurn?.created_at || ''
+      latestActivity: latestTurn?.created_at || '',
+      latestTs: new Date(latestTurn?.created_at || 0).getTime(),
     });
   });
 
-  sessionList.sort((a, b) => new Date(b.latestActivity || 0).getTime() - new Date(a.latestActivity || 0).getTime());
+  sessionList.sort((a, b) => b.latestTs - a.latestTs);
+  cachedGroupedLogsRef = rawChatLogs;
+  cachedGroupedSessions = sessionList;
   return sessionList;
 }
 
 export function renderSessionExplorer() {
   const sessionSummaryRows = document.getElementById('session-summary-rows');
   const explorerSearchInput = document.getElementById('explorer-search-input') as HTMLInputElement | null;
+  const statUniqueUsers = document.getElementById('explorer-stat-unique-users');
+  const statAdoptionPct = document.getElementById('explorer-stat-adoption-pct');
+  const statAdoptionRatio = document.getElementById('explorer-stat-adoption-ratio');
+  const statAdoptionBar = document.getElementById('explorer-stat-adoption-bar') as HTMLElement | null;
+  const pageIndicator = document.getElementById('explorer-page-indicator');
+  const currentPageEl = document.getElementById('explorer-current-page');
+  const btnPrev = document.getElementById('btn-explorer-prev') as HTMLButtonElement | null;
+  const btnNext = document.getElementById('btn-explorer-next') as HTMLButtonElement | null;
+
   if (!sessionSummaryRows) return;
 
   const q = (explorerSearchInput?.value || '').toLowerCase().trim();
   const sessions = getGroupedSessions();
 
   const filtered = sessions.filter(s => {
-    if (!q) return true;
-    const hay = [
-      s.sessionId,
-      s.user.name,
-      s.user.role,
-      s.user.point,
-      s.user.area,
-      s.user.regional,
-      s.user.pulau,
-      s.user.username,
-    ].join(' ').toLowerCase();
-    return hay.includes(q);
+    if (explorerAccountFilter === 'REAL' && !s.isRealUser) return false;
+    if (explorerAccountFilter === 'TESTING' && s.isRealUser) return false;
+    if (q && !s.searchText.includes(q)) return false;
+    return true;
   });
 
+  const activeUserKeys = new Set<string>();
+  for (let i = 0; i < filtered.length; i++) {
+    const s = filtered[i];
+    if (s.turnsCount >= 1) {
+      activeUserKeys.add(s.userKey);
+    }
+  }
+
+  const uniqueUsersCount = activeUserKeys.size;
+  if (statUniqueUsers) statUniqueUsers.innerText = uniqueUsersCount.toLocaleString('id-ID');
+
+  if (explorerAccountFilter === 'TESTING' || totalEmployeeHeadcount <= 0) {
+    if (statAdoptionPct) statAdoptionPct.innerText = '-';
+    if (statAdoptionRatio) statAdoptionRatio.innerText = '-';
+    if (statAdoptionBar) statAdoptionBar.style.width = '0%';
+  } else {
+    const adoptionPct = Math.min(100, (uniqueUsersCount / totalEmployeeHeadcount) * 100);
+    if (statAdoptionPct) statAdoptionPct.innerText = `${adoptionPct.toFixed(1)}%`;
+    if (statAdoptionRatio) {
+      statAdoptionRatio.innerText = `${uniqueUsersCount.toLocaleString('id-ID')} / ${totalEmployeeHeadcount.toLocaleString('id-ID')}`;
+    }
+    if (statAdoptionBar) statAdoptionBar.style.width = `${adoptionPct.toFixed(1)}%`;
+  }
+
   if (filtered.length === 0) {
+    currentExplorerPageSessions = [];
     sessionSummaryRows.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-400">No matching sessions found.</td></tr>`;
+    if (pageIndicator) pageIndicator.innerText = 'Showing 0 sessions';
+    if (currentPageEl) currentPageEl.innerText = '1 / 1';
+    if (btnPrev) btnPrev.disabled = true;
+    if (btnNext) btnNext.disabled = true;
     return;
   }
 
-  sessionSummaryRows.innerHTML = filtered.map((s, idx) => {
+  const totalSessions = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalSessions / explorerPageSize));
+  if (explorerPage > totalPages) explorerPage = totalPages;
+  if (explorerPage < 1) explorerPage = 1;
+
+  const startIdx = (explorerPage - 1) * explorerPageSize;
+  const endIdx = Math.min(startIdx + explorerPageSize, totalSessions);
+  const pageSessions = filtered.slice(startIdx, endIdx);
+  currentExplorerPageSessions = pageSessions;
+
+  if (pageIndicator) {
+    pageIndicator.innerText = `Showing ${startIdx + 1}-${endIdx} of ${totalSessions.toLocaleString('id-ID')} sessions (${uniqueUsersCount.toLocaleString('id-ID')} unique users)`;
+  }
+  if (currentPageEl) currentPageEl.innerText = `${explorerPage} / ${totalPages}`;
+  if (btnPrev) btnPrev.disabled = explorerPage <= 1;
+  if (btnNext) btnNext.disabled = explorerPage >= totalPages;
+
+  sessionSummaryRows.innerHTML = pageSessions.map((s, idx) => {
     const geoParts = [s.user.point, s.user.area, s.user.regional, s.user.pulau].filter(Boolean);
     const geoText = geoParts.join(' • ');
     return `
@@ -841,20 +939,12 @@ export function renderSessionExplorer() {
         ${formatTimeNumeric(s.latestActivity)}
       </td>
       <td class="py-3 px-4 text-right">
-        <button class="btn-open-session px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 shadow-2xs cursor-pointer group-hover:border-gray-300">
+        <button type="button" class="btn-open-session px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-semibold text-gray-700 shadow-2xs cursor-pointer group-hover:border-gray-300">
           View Chat ›
         </button>
       </td>
     </tr>
   `}).join('');
-
-  document.querySelectorAll('.session-summary-row').forEach(tr => {
-    tr.addEventListener('click', () => {
-      const idx = parseInt(tr.getAttribute('data-session-idx') || '0', 10);
-      const selected = filtered[idx];
-      if (selected) openSessionThread(selected);
-    });
-  });
 }
 
 function openSessionThread(sessionGroup: any) {
@@ -891,7 +981,7 @@ function openSessionThread(sessionGroup: any) {
       <div class="flex justify-end">
         <div class="max-w-[85%] rounded-2xl rounded-tr-xs bg-gray-900 text-white p-3.5 shadow-2xs">
           <div class="text-[10px] uppercase font-bold text-gray-400 mb-1">${escapeHtml(sessionGroup.user.name)}</div>
-          <div class="text-xs font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.query || '—')}</div>
+          <div class="text-xs font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.query || '-')}</div>
         </div>
       </div>
 
@@ -901,12 +991,12 @@ function openSessionThread(sessionGroup: any) {
             <span class="text-[10px] uppercase font-bold text-gray-500">AI Assistant</span>
             ${getIntentBadge(turn.intent)}
           </div>
-          <div class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.answer || '—')}</div>
-          <div class="flex flex-wrap items-center gap-3 pt-1 text-[10px] text-gray-400 font-mono border-t border-gray-100">
-            <span>⏱️ ${((turn.latency_ms || 0)/1000).toFixed(2)}s</span>
-            <span>🪙 ${(turn.tokens || 0).toLocaleString('id-ID')} tokens</span>
-            <span>💵 Rp ${Math.round((turn.cost || 0) * USD_TO_IDR).toLocaleString('id-ID')}</span>
-            ${turn.cache_hit || (turn.or_cached_tokens > 0) ? '<span class="text-emerald-600 font-semibold">Cached</span>' : ''}
+          <div class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">${escapeHtml(turn.answer || '-')}</div>
+          <div class="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-gray-500 font-mono border-t border-gray-100">
+            <span>Latency: ${((turn.latency_ms || 0)/1000).toFixed(2)}s</span>
+            <span>Tokens: ${(turn.tokens || 0).toLocaleString('id-ID')}</span>
+            <span>Cost: Rp ${Math.round((turn.cost || 0) * USD_TO_IDR).toLocaleString('id-ID')}</span>
+            ${turn.cache_hit || (turn.or_cached_tokens > 0) ? '<span class="text-emerald-700 font-semibold">Cached</span>' : ''}
           </div>
         </div>
       </div>
@@ -937,9 +1027,9 @@ export function renderLTMTable() {
 
   ltmRows.innerHTML = filtered.map(u => `
     <tr class="hover:bg-gray-50/80 transition-colors">
-      <td class="py-3 px-4 font-mono font-bold text-gray-900">${escapeHtml(u.user_id || '—')}</td>
-      <td class="py-3 px-4 text-gray-700 whitespace-pre-line text-xs leading-relaxed">${escapeHtml(u.learning_summary || '—')}</td>
-      <td class="py-3 px-4 text-right font-mono text-gray-400 tabular-nums text-xs whitespace-nowrap">${formatTimeNumeric(u.updated_at)}</td>
+      <td class="py-3 px-4 font-mono font-bold text-gray-900">${escapeHtml(u.user_id || '-')}</td>
+      <td class="py-3 px-4 text-gray-700 whitespace-pre-line text-xs leading-relaxed">${escapeHtml(u.learning_summary || '-')}</td>
+      <td class="py-3 px-4 text-right font-mono text-gray-500 tabular-nums text-xs whitespace-nowrap">${formatTimeNumeric(u.updated_at)}</td>
     </tr>
   `).join('');
 }
@@ -1147,12 +1237,12 @@ export function populateClassificationFilters() {
     selectEl.innerHTML = options.join('');
   };
 
-  fillSelect(pulauSelect, pulauSet, 'All Pulau', classFilterPulau);
+  fillSelect(pulauSelect, pulauSet, 'All Islands', classFilterPulau);
   fillSelect(regionalSelect, regionalSet, 'All Regions', classFilterRegional);
   fillSelect(areaSelect, areaSet, 'All Areas', classFilterArea);
   fillSelect(pointSelect, pointSet, 'All Branch Points', classFilterPoint);
   if (positionSelect) {
-    fillSelect(positionSelect, positionSet, 'All Positions', classFilterPosition);
+    fillSelect(positionSelect, positionSet, 'All Roles', classFilterPosition);
   }
 }
 
@@ -1188,9 +1278,9 @@ export function renderClassificationView() {
     tableRows.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-gray-400">No query logs match the selected filters.</td></tr>`;
     if (geoIslandsContainer) geoIslandsContainer.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">No distribution data available.</div>`;
     if (geoPointsContainer) geoPointsContainer.innerHTML = `<div class="text-xs text-gray-400 py-4 text-center">No branch points mapped for this dataset.</div>`;
-    if (statTopCategory) statTopCategory.innerText = '—';
+    if (statTopCategory) statTopCategory.innerText = '-';
     if (statTopPct) statTopPct.innerText = '0%';
-    if (statTopPosition) statTopPosition.innerText = '—';
+    if (statTopPosition) statTopPosition.innerText = '-';
     if (statTopPositionPct) statTopPositionPct.innerText = '0%';
     if (statIslandsCount) statIslandsCount.innerText = '0';
     if (statBranchesCount) statBranchesCount.innerText = '0';
@@ -1459,12 +1549,12 @@ export function renderClassificationView() {
         </td>
         <td class="py-3 px-4">
           <div class="flex flex-wrap gap-1">
-            ${islandBadges || '<span class="text-gray-400 text-[10px]">—</span>'}
+            ${islandBadges || '<span class="text-gray-500 text-[10px]">-</span>'}
           </div>
         </td>
         <td class="py-3 px-4">
           <div class="flex flex-wrap gap-1">
-            ${positionBadges || '<span class="text-gray-400 text-[10px]">—</span>'}
+            ${positionBadges || '<span class="text-gray-500 text-[10px]">-</span>'}
           </div>
         </td>
         <td class="py-3 px-4 text-center">
@@ -1514,9 +1604,9 @@ export function renderClassificationView() {
                       ` : ''}
                     </div>
                     ${samplePts ? `
-                      <div class="mt-1.5 text-[10px] text-gray-400 font-sans flex items-center gap-1 truncate">
-                        <span>📍 Origin:</span>
-                        <span class="text-gray-600 truncate">${escapeHtml(samplePts)}</span>
+                      <div class="mt-1.5 text-[11px] text-gray-500 font-sans flex items-center gap-1 truncate">
+                        <span>Origin:</span>
+                        <span class="text-gray-700 truncate">${escapeHtml(samplePts)}</span>
                       </div>
                     ` : ''}
                   </div>
@@ -1650,6 +1740,11 @@ export function initLogsTab() {
   const logSubtabPanes = document.querySelectorAll<HTMLElement>('.log-subtab-pane');
 
   const explorerSearchInput = document.getElementById('explorer-search-input');
+  const explorerAccountFilterSelect = document.getElementById('explorer-account-filter') as HTMLSelectElement | null;
+  const explorerPageSizeSelect = document.getElementById('explorer-page-size') as HTMLSelectElement | null;
+  const btnExplorerPrev = document.getElementById('btn-explorer-prev');
+  const btnExplorerNext = document.getElementById('btn-explorer-next');
+  const sessionSummaryRows = document.getElementById('session-summary-rows');
   const ltmSearchInput = document.getElementById('ltm-search-input');
   const threadModal = document.getElementById('thread-modal') as HTMLDialogElement | null;
   const btnCloseThreadModal = document.getElementById('btn-close-thread-modal');
@@ -1836,7 +1931,57 @@ export function initLogsTab() {
   });
 
   if (explorerSearchInput) {
-    explorerSearchInput.addEventListener('input', renderSessionExplorer);
+    explorerSearchInput.addEventListener('input', () => {
+      if (explorerSearchTimer) clearTimeout(explorerSearchTimer);
+      explorerSearchTimer = setTimeout(() => {
+        explorerPage = 1;
+        renderSessionExplorer();
+      }, 150);
+    });
+  }
+
+  if (explorerAccountFilterSelect) {
+    explorerAccountFilterSelect.addEventListener('change', () => {
+      explorerAccountFilter = explorerAccountFilterSelect.value;
+      explorerPage = 1;
+      renderSessionExplorer();
+    });
+  }
+
+  if (explorerPageSizeSelect) {
+    explorerPageSizeSelect.addEventListener('change', () => {
+      const parsed = parseInt(explorerPageSizeSelect.value, 10);
+      explorerPageSize = !isNaN(parsed) && parsed > 0 ? parsed : 25;
+      explorerPage = 1;
+      renderSessionExplorer();
+    });
+  }
+
+  if (btnExplorerPrev) {
+    btnExplorerPrev.addEventListener('click', () => {
+      if (explorerPage > 1) {
+        explorerPage--;
+        renderSessionExplorer();
+      }
+    });
+  }
+
+  if (btnExplorerNext) {
+    btnExplorerNext.addEventListener('click', () => {
+      explorerPage++;
+      renderSessionExplorer();
+    });
+  }
+
+  if (sessionSummaryRows) {
+    sessionSummaryRows.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null;
+      const tr = target?.closest('.session-summary-row') as HTMLElement | null;
+      if (!tr) return;
+      const idx = parseInt(tr.getAttribute('data-session-idx') || '-1', 10);
+      const selected = currentExplorerPageSessions[idx];
+      if (selected) openSessionThread(selected);
+    });
   }
 
   if (ltmSearchInput) {

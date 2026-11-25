@@ -301,8 +301,8 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
   const skorNum = parseFloat(skorRaw) || 0;
 
   // Competency & Certification (strictly from DB or '—')
-  const competency = hData.competency || hData.COMPETENCY || row.competency || row.COMPETENCY || '—';
-  const certResult = hData.certification_result || hData.CERTIFICATION_RESULT || row.certification_result || row.CERTIFICATION_RESULT || '—';
+  const competency = hData.competency || hData.COMPETENCY || row.competency || row.COMPETENCY || '-';
+  const certResult = hData.certification_result || hData.CERTIFICATION_RESULT || row.certification_result || row.CERTIFICATION_RESULT || '-';
 
   // Months Jan - Dec
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -325,14 +325,14 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
 
   // Calculate or retrieve Avg Score (YTD) strictly from DB
   const rawAvg = hData.avg_score ?? hData.AVG_SCORE ?? row.avg_score ?? row.AVG_SCORE;
-  let avgScoreFormatted = '—';
+  let avgScoreFormatted = '-';
   if (rawAvg !== null && rawAvg !== undefined) {
     const sAvg = String(rawAvg).trim();
     if (sAvg !== '' && sAvg !== '-' && sAvg !== 'null') {
       avgScoreFormatted = sAvg.includes('%') ? sAvg : `${sAvg}%`;
     }
   }
-  if (avgScoreFormatted === '—') {
+  if (avgScoreFormatted === '-') {
     const validVals = monthScores.filter((v): v is number => v !== null);
     if (validVals.length > 0) {
       const avg = validVals.reduce((a, b) => a + b, 0) / validVals.length;
@@ -352,7 +352,7 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
       }
     }
     const vals = monthScores.slice(startIdx, endIdx).filter((v): v is number => v !== null);
-    if (vals.length === 0) return '—';
+    if (vals.length === 0) return '-';
     const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
     return `${avg.toFixed(1)}%`;
   };
@@ -539,7 +539,7 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
               return `
                 <div class="flex items-center justify-between text-xs py-0.5">
                   <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
-                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-400' : 'text-gray-800'} text-[11px]">${isNull ? '-' : `${val}%`}</span>
                 </div>
               `;
             }).join('')}
@@ -554,7 +554,7 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
               return `
                 <div class="flex items-center justify-between text-xs py-0.5">
                   <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
-                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-400' : 'text-gray-800'} text-[11px]">${isNull ? '-' : `${val}%`}</span>
                 </div>
               `;
             }).join('')}
@@ -569,7 +569,7 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
               return `
                 <div class="flex items-center justify-between text-xs py-0.5">
                   <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
-                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-400' : 'text-gray-800'} text-[11px]">${isNull ? '-' : `${val}%`}</span>
                 </div>
               `;
             }).join('')}
@@ -584,7 +584,7 @@ function buildEmployeeHistoryHtml(row: any, historyRecord?: any): string {
               return `
                 <div class="flex items-center justify-between text-xs py-0.5">
                   <span class="text-gray-500 font-medium text-[11px]">${months[idx]}</span>
-                  <span class="font-mono font-bold ${isNull ? 'text-gray-300' : 'text-gray-800'} text-[11px]">${isNull ? '—' : `${val}%`}</span>
+                  <span class="font-mono font-bold ${isNull ? 'text-gray-400' : 'text-gray-800'} text-[11px]">${isNull ? '-' : `${val}%`}</span>
                 </div>
               `;
             }).join('')}
@@ -617,7 +617,7 @@ export function renderKPITable() {
   }
 
   kpiTableRows.innerHTML = filtered.map((row, idx) => {
-    const skor = row['Skor KPI'] || row.skor_kpi || '—';
+    const skor = row['Skor KPI'] || row.skor_kpi || '-';
     const status = row['KPI Status'] || row.kpi_status || 'Need Improvement';
     const sLower = String(status).toLowerCase();
 
@@ -637,14 +637,14 @@ export function renderKPITable() {
 
     return `
       <tr data-kpi-index="${idx}" class="kpi-row hover:bg-gray-50/80 transition-colors cursor-pointer group">
-        <td class="py-3 px-4 font-bold text-gray-900 font-mono group-hover:text-black transition-colors">${row.username || '—'}</td>
-        <td class="py-3 px-4 text-gray-900 font-semibold">${row.full_name || '—'}</td>
+        <td class="py-3 px-4 font-bold text-gray-900 font-mono group-hover:text-black transition-colors">${row.username || '-'}</td>
+        <td class="py-3 px-4 text-gray-900 font-semibold">${row.full_name || '-'}</td>
         <td class="py-3 px-4">
           <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
             ${row.role || row.position || 'BP'}
           </span>
         </td>
-        <td class="py-3 px-4 text-gray-600">${row.point || '—'}</td>
+        <td class="py-3 px-4 text-gray-600">${row.point || '-'}</td>
         <td class="py-3 px-4 text-gray-500">${row.area || ''} / ${row.regional || ''}</td>
         <td class="py-3 px-4 font-bold tabular-nums ${skorClass}">${skor}</td>
         <td class="py-3 px-4 text-center">${renderKpiTrendSparkline(row)}</td>
@@ -672,10 +672,10 @@ export function renderKPITable() {
         ['KPI Period', row.periode_kpi],
         ['Branch / Point', row.point],
         ['Area & Regional', `${row.area || ''} / ${row.regional || ''} (${row.pulau || ''})`],
-        ['Ranking', row.Ranking || '—'],
-        ['KPI Score', row['Skor KPI'] || '—'],
-        ['KPI Status', row['KPI Status'] || '—'],
-        ['Total Incentive', row['Total Insentif'] || '—'],
+        ['Ranking', row.Ranking || '-'],
+        ['KPI Score', row['Skor KPI'] || '-'],
+        ['KPI Status', row['KPI Status'] || '-'],
+        ['Total Incentive', row['Total Insentif'] || '-'],
       ];
 
       const contentHtml = `
@@ -685,8 +685,8 @@ export function renderKPITable() {
             <div class="grid grid-cols-2 gap-2 shrink-0">
               ${highlights.map(([label, val]) => `
                 <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                  <span class="text-[10px] text-gray-400 font-bold uppercase block">${label}</span>
-                  <div class="text-gray-900 font-bold text-xs truncate mt-0.5">${val || '—'}</div>
+                  <span class="text-[11px] text-gray-500 font-semibold block">${label}</span>
+                  <div class="text-gray-900 font-bold text-xs truncate mt-0.5">${val || '-'}</div>
                 </div>
               `).join('')}
             </div>

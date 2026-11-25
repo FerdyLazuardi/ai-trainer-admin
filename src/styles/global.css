@@ -11,6 +11,34 @@ body {
   color: #111827;
 }
 
+/* Visible keyboard focus ring & interactive pointer baseline (R-32, R-39) */
+a[href],
+button:not(:disabled),
+select:not(:disabled),
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Sidebar desktop collapse state */
 @media (min-width: 1024px) {
   #main-sidebar.is-collapsed {
